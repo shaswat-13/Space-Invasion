@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35208.52
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Space Invasion", "Space Invasion\Space Invasion.vcxproj", "{DCD18AC2-3650-41F7-9599-5E6DED8526DC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Debug|x64.ActiveCfg = Debug|x64
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Debug|x64.Build.0 = Debug|x64
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Debug|x86.ActiveCfg = Debug|Win32
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Debug|x86.Build.0 = Debug|Win32
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Release|x64.ActiveCfg = Release|x64
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Release|x64.Build.0 = Release|x64
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Release|x86.ActiveCfg = Release|Win32
+		{DCD18AC2-3650-41F7-9599-5E6DED8526DC}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FF64136E-B820-40DF-A2F9-747875E00D6D}
+	EndGlobalSection
+EndGlobal
