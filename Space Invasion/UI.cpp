@@ -44,7 +44,7 @@ void UI::updateHealthBar(float healthPercent, float posx, float posy) {
 
 void UI::updateScoreAndLevel(int score, int level)
 {
-    this->ptext.setPosition(700, 25);
+    this->ptext.setPosition(690, 25);
     this->ptext.setString("Score:" + std::to_string(score) + "\nLevel: " + std::to_string(level));
 }
 

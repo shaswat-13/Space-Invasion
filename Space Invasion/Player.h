@@ -2,6 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/System.hpp>
 #include <iostream>
+#include<cmath>
 
 class Player
 {
@@ -38,8 +39,8 @@ public:
 
     void move(const float dx, const float dy, const sf::RenderWindow& window);
     const bool canAttack();
-    void updateAttack();
-    void update();
+    void updateAttack(int x);
+    void update(int x);
     void resetstats();
     void render(sf::RenderTarget& target);
 };

@@ -16,6 +16,8 @@ private:
 
 
 	//resources
+	sf::Clock clock;
+
 	std::map<std::string, sf::Texture*> textures;
 	std::vector<Bullet*> bullets;
 	std::vector<Star*> stars;
@@ -31,6 +33,7 @@ private:
 	unsigned points;
 
 	//Enemies
+
 	float spawnTimer;
 	float spawnTimermax;
 	std::vector<Enemy*>enemies;
@@ -55,6 +58,7 @@ public:
 	void run();
 	int getpoints();
 	int getlevel();
+	void updatelevel();
 	void updatePollEvents();
 	void updateInput();
 	void updateEnemiesCombat();
@@ -69,4 +73,3 @@ public:
 
 
 };
-

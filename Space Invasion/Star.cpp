@@ -25,7 +25,7 @@ void Star::update(float levelSpeedMultiplier)
     this->shape.setScale(scale, scale);
 
     // Move the star downwards, adjusting speed with level multiplier
-    float adjustedSpeed = this->baseSpeed * levelSpeedMultiplier;
+    float adjustedSpeed =levelSpeedMultiplier;
     this->shape.move(0.f, adjustedSpeed);
 
     // Wrap around the screen

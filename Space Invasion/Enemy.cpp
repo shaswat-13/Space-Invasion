@@ -9,10 +9,10 @@ void Enemy::initVariables()
     this->type = 0;
     this->hp = this->hpMax;
     this->hpMax = static_cast<int>(this->pointCount);
-    this->damage = 3;
+    this->damage = 1;
     this->bulletDamage = 1;
     this->points = 5;
-    this->shootCooldownMax = 120.f;
+    this->shootCooldownMax = 10.f;
     this->shootCooldown = this->shootCooldownMax;
 }
 
@@ -56,17 +56,44 @@ Enemy::Enemy(float posx, float posy)
     this->EnemyShips.setPosition(posx, posy);
 }
 
-bool Enemy::canShoot() {
-    if (this->shootCooldown >= this->shootCooldownMax) {
-        this->shootCooldown = 0.f; // Reset timer after shooting
-        return true;
+const bool Enemy::canShoot()
+{
+    if (this->shootCooldown >= this->shootCooldownMax)
+    {
+        this->shootCooldown = 0.f;
+
+        return true; //allow attack
     }
-    this->shootCooldown += 1.f; // Increment timer
-    return false;
+    return false; // prevent attack if cooldown is not finished
 }
 
-void Enemy::update() {
+void Enemy::updateattack(int x)
+{
+    // Calculate the max cooldown based on the level (x), using an exponential decay for gradual reduction
+    this->shootCooldownMax = std::max(3.0f, 10.0f / (1 + std::exp(-0.2f * (x - 10)))); // Exponential decay after level 10
+
+    // Gradually decrease the attackCooldown towards 0, ensuring it's capped at attackCooldownmax
+    if (this->shootCooldown < this->shootCooldownMax) {
+        this->shootCooldown += 0.03f * x;  // This increases cooldown towards attackCooldownmax
+        if (this->shootCooldown > this->shootCooldownMax) {
+            this->shootCooldown = this->shootCooldownMax; // Cap it at attackCooldownmax
+        }
+    }
+    else if (this->shootCooldown > 0) {
+        // Gradually decrease the cooldown to 0 (allow firing)
+        this->shootCooldown -= 0.05f * x; // Slow decrease towards 0
+        if (this->shootCooldown < 0) {
+            this->shootCooldown = 0; // Cap it at 0 to allow firing
+        }
+    }
+}
+
+
+
+void Enemy::update(float level) {
+    this->speed=std::min(8.f,0.7f*level);
     this->EnemyShips.move(0.f, speed);
+    
 }
 
 // Destructor (currently empty, but useful for future expansions)
@@ -79,6 +106,18 @@ const sf::Vector2f& Enemy::getPos() const
 {
     return this->EnemyShips.getPosition();
 }
+
+const sf::Vector2f Enemy::getCenter() const
+{
+    return sf::Vector2f(
+        this->EnemyShips.getPosition().x + this->EnemyShips.getGlobalBounds().width / 2.f,
+        this->EnemyShips.getPosition().y + this->EnemyShips.getGlobalBounds().height / 2.f
+    );
+}
+
+
+
+
 
 // Function to validate and adjust the enemy's initial position if necessary
 void Enemy::validatePosition(float& posx, float& posy)
@@ -132,6 +171,7 @@ bool Enemy::isDead() const {
 
 
 
+
 // Render the enemy on the screen
 void Enemy::render(sf::RenderTarget* target)
 {
@@ -140,9 +180,6 @@ void Enemy::render(sf::RenderTarget* target)
         target->draw(this->EnemyShips);
     }
 }
-
-
-
 
 
 

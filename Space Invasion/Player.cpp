@@ -1,4 +1,3 @@
-
 #include "Player.h"
 
 #include "ship.h"
@@ -7,7 +6,7 @@ void Player::initVariables()
 	this->movementSpeed = 2.f;
 	this->attackCooldownmax = 10.f;
 	this->attackCooldown = this->attackCooldownmax;
-	this->hpmax = 10;
+	this->hpmax = 50000;
 	this->hp = this->hpmax;
 
 
@@ -15,7 +14,7 @@ void Player::initVariables()
 
 void Player::initTexture()
 {
-	if (!this->texture.loadFromMemory(space2_png,space2_png_len))
+	if (!this->texture.loadFromMemory(space2_png, space2_png_len))
 	{
 		std::cout << "Something went wrong:Player" << "\n";
 	}
@@ -102,24 +101,41 @@ const bool Player::canAttack()
 	{
 		this->attackCooldown = 0.f;
 
-		return true;
+		return true; //allow attack
 	}
-	else
-		return false;
+	return false; // prevent attack if cooldown is not finished
 }
 
-void Player::updateAttack()
+void Player::updateAttack(int x)
 {
+	// Calculate the max cooldown based on the level (x), using an exponential decay for gradual reduction
+	this->attackCooldownmax = std::max(1.0f, 10.0f / (1 + std::exp(-0.2f * (x - 10)))); // Exponential decay after level 10
 
-	if (this->attackCooldown < this->attackCooldownmax)
-		this->attackCooldown += 0.5f;
-
+	// Gradually decrease the attackCooldown towards 0, ensuring it's capped at attackCooldownmax
+	if (this->attackCooldown < this->attackCooldownmax) {
+		this->attackCooldown += 0.1f * x;  // This increases cooldown towards attackCooldownmax
+		if (this->attackCooldown > this->attackCooldownmax) {
+			this->attackCooldown = this->attackCooldownmax; // Cap it at attackCooldownmax
+		}
+	}
+	else if (this->attackCooldown > 0) {
+		// Gradually decrease the cooldown to 0 (allow firing)
+		this->attackCooldown -= 0.05f * x; // Slow decrease towards 0
+		if (this->attackCooldown < 0) {
+			this->attackCooldown = 0; // Cap it at 0 to allow firing
+		}
+	}
 }
+
+
+
+
 
 //function 
-void Player::update()
+void Player::update(int x)
 {
-	this->updateAttack();
+	this->movementSpeed = std::min(5.f, 2.f + 0.5f * x);
+
 }
 
 void Player::resetstats()

@@ -1,12 +1,14 @@
 #include "Game.h"
 #include"bullet1.h"
+#include <cmath> // For atan2 and other math functions
+
 
 // Initialization functions...
 
 void Game::initwindow()
 {
 	this->window = new sf::RenderWindow(sf::VideoMode(800, 600), "Space Invasion", sf::Style::Close | sf::Style::Titlebar);
-	this->window->setFramerateLimit(144);
+	this->window->setFramerateLimit(60);
 	this->window->setVerticalSyncEnabled(false);
 }
 
@@ -33,7 +35,7 @@ void Game::initStars()
 void Game::initEnemies()
 {
 	this->spawnTimer = 0.f;
-	this->spawnTimermax = 50.f;
+	this->spawnTimermax = std::max(10.f, 50.f - (level * 2.f)); // Avoid spawn times below 10
 }
 
 void Game::initUI()
@@ -48,7 +50,7 @@ void Game::initUI()
 void Game::initTextures()
 {
 	this->textures["BULLET"] = new sf::Texture();
-	this->textures["BULLET"]->loadFromMemory(bullet_png,bullet_png_len);
+	this->textures["BULLET"]->loadFromMemory(bullet_png, bullet_png_len);
 }
 
 void Game::initSystems()
@@ -100,6 +102,7 @@ void Game::run()
 
 int Game::getpoints()
 {
+
 	return this->points;
 
 }
@@ -107,6 +110,12 @@ int Game::getpoints()
 int Game::getlevel()
 {
 	return this->level;
+
+}
+
+void Game::updatelevel()
+{
+	this->level += 1;
 
 }
 
@@ -136,24 +145,55 @@ void Game::updateInput()
 	// Player shooting
 	if ((sf::Mouse::isButtonPressed(sf::Mouse::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Space)) && this->player->canAttack())
 	{
-		this->bullets.push_back(new Bullet(this->textures["BULLET"], this->player->getPos().x + 32, this->player->getPos().y, 0.f, -1.f, 5.f, 2));
+		this->bullets.push_back(new Bullet(this->textures["BULLET"], this->player->getPos().x + 30, this->player->getPos().y, 0.f, -1.f, 3.f*level, 2*level,this->level));
+		
 	}
+	this->player->update(this->level);
 }
+
 
 void Game::updateEnemies()
 {
-	this->spawnTimer += 0.1f * this->level; // Increase spawn rate with level
+	this->spawnTimer += 0.2f * this->level; // Increase spawn rate with level
 	this->spawnTimermax = std::max(20.f, 50.f - (level * 2.f)); // Adjust spawn rate as level increases
 
 	if (this->spawnTimer >= this->spawnTimermax)
 	{
-		// Spawn a new enemy at a random x position just above the screen
-		this->enemies.push_back(new Enemy(rand() % this->window->getSize().x, -50.f));
-		this->spawnTimer = 0.f;
-	}
-	for (size_t i = 0; i < this->enemies.size(); ++i) {
-		this->enemies[i]->update();
+		float playerX = this->player->getPos().x;
+		float randomX;
+		bool validPosition = false;
+		int attempts = 0; // Track attempts
+		const int maxAttempts = 100; // Maximum attempts to find a valid position
 
+		while (!validPosition && attempts < maxAttempts)
+		{
+			randomX = playerX + static_cast<float>(rand() % 401 - 200);
+			randomX = std::max(0.f, std::min(randomX, static_cast<float>(this->window->getSize().x)));
+
+			validPosition = true;
+
+			for (const auto& enemy : this->enemies)
+			{
+				if (std::abs(enemy->getPos().x - randomX) < 50.f) // Minimum distance of 50 units
+				{
+					validPosition = false;
+					break;
+				}
+			}
+
+			++attempts;
+		}
+
+		if (validPosition) // Only spawn if a valid position was found
+		{
+			this->enemies.push_back(new Enemy(randomX, -100.f));
+			this->spawnTimer = 0.f;
+		}
+	}
+
+	for (size_t i = 0; i < this->enemies.size(); ++i) {
+		this->enemies[i]->update(this->level);
+		this->enemies[i]->updateattack(this->getlevel());
 		// Remove enemy if out of bounds
 		if (this->enemies[i]->getBounds().top > this->window->getSize().y) {
 			delete this->enemies[i];
@@ -164,12 +204,14 @@ void Game::updateEnemies()
 
 		if (this->enemies[i]->canShoot())
 		{
-			this->enemyBullets.push_back(new Bullet(this->textures["BULLET"], this->enemies[i]->getBounds().left + this->enemies[i]->getBounds().width / 2, this->enemies[i]->getBounds().top + this->enemies[i]->getBounds().height, 0.f, 1.f, 5.f, 1));  // Downward bullet		
+			this->enemyBullets.push_back(new Bullet(this->textures["BULLET"],this->enemies[i]->getPos().x + 20, this->enemies[i]->getBounds().top + this->enemies[i]->getBounds().height, 0.f, 1.f, 3.f * level, 2 * level, this->level));  // Downward bullet		
 
 		}
 
 	}
 }
+
+
 void Game::updateEnemyBullets()
 {
 	for (size_t i = 0; i < this->enemyBullets.size(); ++i) {
@@ -260,7 +302,10 @@ void Game::updateBullets()
 
 void Game::updateStars()
 {
-	float levelSpeedMultiplier = 1.0f + (this->level * 0.1f);
+
+	float levelSpeedMultiplier;
+	levelSpeedMultiplier = std::min(3.f, 1.0f + this->level * 0.3f); // Minimum cooldown of 0.5s
+
 	for (auto& star : this->stars) {
 		star->update(levelSpeedMultiplier);
 	}
@@ -272,6 +317,10 @@ void Game::updateUI() {
 
 	this->ui->updateHealthBar(playerHealthPercent, this->player->getPos().x + 10, this->player->getPos().y + 95);
 	int score = this->getpoints();
+	if (score > 20 * this->getlevel())
+	{
+		this->updatelevel();
+	}
 	int level = this->getlevel();
 	this->ui->updateScoreAndLevel(score, level);
 	if (this->player->getHp() == 0)
@@ -285,18 +334,20 @@ void Game::updateUI() {
 
 void Game::update()
 {
+	
 	this->updatePollEvents();
 	if (this->player->getHp() != 0)
 	{
 
 		this->updateInput();
 		this->updateStars();
-		this->player->update();
+		this->player->updateAttack(this->getlevel());
 		this->updateBullets();
 		this->updateEnemies();
 		this->updateEnemiesCombat();
 		this->updateEnemyBullets();
 		this->updateUI();
+
 	}
 
 
@@ -334,5 +385,6 @@ void Game::resetgame()
 {
 	this->player->resetstats();
 	this->player->move(this->window->getSize().x / 2.f, this->window->getSize().y - 50.f, *window);
+	this->level = 1;
 
 }
