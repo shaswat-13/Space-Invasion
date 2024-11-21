@@ -7,33 +7,33 @@
 class Enemy
 {
 private:
-    int type;
+    enum EnemyType { Minion, Boss };
+    EnemyType type;
     float speed;
     unsigned pointCount;
-    int hp;
-    int hpMax;
+    float hp;
+    float hpMax;
     int damage;
     int bulletDamage;
     int points;
+    int level;
     sf::Sprite EnemyShips;
-    sf::Sprite spaceship;
+    sf::Sprite boss;
     sf::Texture texture;
-    sf::Texture shiptext;
+    sf::Texture bossText;
     float shootCooldownMax;  // Max cooldown for shooting
     float shootCooldown;     // Current cooldown timer
 
-    float rotation;  // Enemy rotation towards the player
-
-    void initShape();
-    void initVariables();
-    void initSprite();
+    void initShape(bool isBoss);
+    void initVariables(bool isBoss);
+    void initSprite(bool isBoss);
     void validatePosition(float& posx, float& posy);
 
 public:
-    Enemy(float posx, float posy);
+    Enemy(float posx, float posy, float level, bool isBoss = false);   
     virtual ~Enemy();
 
-    const sf::Vector2f& getPos() const;
+    const sf::Vector2f& getPos(bool isBoss) const;
     const sf::Vector2f getCenter() const; // Returns the center of the enemy sprite
 
 
@@ -46,11 +46,14 @@ public:
     const bool canShoot();
     const int& getPoints() const;
     const int& getDamage() const;
+    float gethp();
+    float gethpmax();
     const int& getBulletDamage() const;
 
     // Functions
     void update(float level);
-    void render(sf::RenderTarget* target);
+    void renderminion(sf::RenderTarget* target);
+    void renderboss(sf::RenderTarget* target);
 };
 
 #endif // ENEMY_H

@@ -1,60 +1,97 @@
 #include "Enemy.h"
 #include "eship.h"
+#include"boss.h"
 #include<random>
-// Initialize variables (type, hp, damage, etc.)
-void Enemy::initVariables()
+
+
+
+Enemy::Enemy(float posx, float posy, float level, bool isBoss)
+    :type(isBoss ? Boss : Minion), level(level)
 {
-    this->pointCount = 10;
-    this->speed = 0.5f;
-    this->type = 0;
-    this->hp = this->hpMax;
-    this->hpMax = static_cast<int>(this->pointCount);
-    this->damage = 1;
-    this->bulletDamage = 1;
-    this->points = 5;
-    this->shootCooldownMax = 10.f;
-    this->shootCooldown = this->shootCooldownMax;
+
+    this->initVariables(isBoss);
+    this->initShape(isBoss);
+    this->initSprite(isBoss);
+
+    this->validatePosition(posx, posy);
+    if (isBoss)
+        this->boss.setPosition(posx, posy);
+    else
+        this->EnemyShips.setPosition(posx, posy);
+
+}
+
+
+
+// Initialize variables (type, hp, damage, etc.)
+void Enemy::initVariables(bool isBoss)
+{
+    
+    if (isBoss) {
+        // Boss color
+        this->speed = 0.5f;   // Higher health for boss
+        this->hpMax = 500;
+        // Slower for boss
+        this->hp = this->hpMax;
+        this->damage = 10; // Boss damage
+    
+    }
+    else {
+        // Minion color
+        this->speed = 1.f + 0.1f * level;                    // Faster minions
+        this->hp = 10 + level * 2;                       // Minion health
+        this->damage = 2;
+        this->points = 5;
+    }
 }
 
 // Load the texture and handle potential errors
-void Enemy::initShape()
+void Enemy::initShape(bool isBoss)
 {
-    if (!this->texture.loadFromMemory(space1_png,space1_png_len))
+    if (isBoss)
     {
-        std::cerr << "ERROR::ENEMY::Failed to load texture from file" << std::endl;
+        if (!this->bossText.loadFromMemory(boss_png, boss_png_len))
+        {
+            std::cerr << "ERROR::ENEMY::Failed to load Boss from file" << std::endl;
+
+        }
+        
+
+        this->boss.setTexture(this->bossText);
+       
+    }
+    else
+    {
+        if (!this->texture.loadFromMemory(space1_png, space1_png_len))
+        {
+            std::cerr << "ERROR::ENEMY::Failed to load texture from file" << std::endl;
+        }
+        this->EnemyShips.setTexture(this->texture);
+
+        
     }
 }
 
 // Initialize the sprite with the loaded texture
 
 
-void Enemy::initSprite()
+void Enemy::initSprite(bool isBoss)
 {
-    // Define the scale range (e.g., between 0.5 and 2.0)
-    const float minScale = 0.01f;
-    const float maxScale = 0.1f;
+    if (isBoss)
+    {
+       
+        this->boss.scale(0.1f, 0.1f);
 
+    }
+    else
+    {
+        float scaleFactor = 0.1f;
 
-
-    float scaleFactor = 0.1f;
-
-    this->EnemyShips.setTexture(this->texture);
-
-    // Resize the sprite using the random scale factor
-    this->EnemyShips.scale(scaleFactor, scaleFactor);
+        this->EnemyShips.scale(scaleFactor, scaleFactor);
+    }
 }
 
 
-// Constructor with position validation
-Enemy::Enemy(float posx, float posy)
-{
-    this->initVariables();
-    this->initShape();
-    this->initSprite();
-
-    this->validatePosition(posx, posy);
-    this->EnemyShips.setPosition(posx, posy);
-}
 
 const bool Enemy::canShoot()
 {
@@ -93,8 +130,10 @@ void Enemy::updateattack(int x)
 void Enemy::update(float level) {
     this->speed=std::min(8.f,0.7f*level);
     this->EnemyShips.move(0.f, speed);
+    this->boss.move(0.f, 1.f);
     
 }
+
 
 // Destructor (currently empty, but useful for future expansions)
 Enemy::~Enemy()
@@ -102,9 +141,12 @@ Enemy::~Enemy()
 
 }
 
-const sf::Vector2f& Enemy::getPos() const
+const sf::Vector2f& Enemy::getPos(bool isBoss) const
 {
-    return this->EnemyShips.getPosition();
+    if (!isBoss)
+        return this->EnemyShips.getPosition();
+    else
+        return this->boss.getPosition();
 }
 
 const sf::Vector2f Enemy::getCenter() const
@@ -128,11 +170,9 @@ void Enemy::validatePosition(float& posx, float& posy)
 
     // Adjust position if it's outside the screen bounds
     if (posx < 0.0f) posx = 0.0f;
-    if (posy < 0.0f) posy = 0.0f;
     if (posx > screenWidth - this->EnemyShips.getGlobalBounds().width)
         posx = screenWidth - this->EnemyShips.getGlobalBounds().width;
-    if (posy > screenHeight - this->EnemyShips.getGlobalBounds().height)
-        posy = screenHeight - this->EnemyShips.getGlobalBounds().height;
+  
 }
 
 const sf::FloatRect Enemy::getBounds() const
@@ -159,6 +199,16 @@ const int& Enemy::getDamage() const
     return this->damage;
 }
 
+float Enemy::gethp()
+{
+    return this->hp;
+}
+
+float Enemy::gethpmax()
+{
+    return this->hpMax;
+}
+
 const int& Enemy::getBulletDamage() const
 {
     return this->bulletDamage;
@@ -173,12 +223,21 @@ bool Enemy::isDead() const {
 
 
 // Render the enemy on the screen
-void Enemy::render(sf::RenderTarget* target)
+void Enemy::renderminion(sf::RenderTarget* target)
 {
     if (target)
     {
         target->draw(this->EnemyShips);
     }
+}
+
+void Enemy::renderboss(sf::RenderTarget* target)
+{
+    if (target)
+    {
+        target->draw(this->boss);
+    }
+    
 }
 
 

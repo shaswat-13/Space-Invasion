@@ -6,7 +6,7 @@ public:
     Star(float x, float y, float radius);
 
     // Updated to accept level speed multiplier as a parameter
-    void update(float levelSpeedMultiplier);
+    void update(float levelSpeedMultiplier,const sf::RenderWindow& window);
     void render(sf::RenderTarget& target);
 
 private:

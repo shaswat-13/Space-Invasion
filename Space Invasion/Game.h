@@ -10,14 +10,26 @@
 class Game
 {
 private:
+	enum class GameState
+	{
+		MENU,
+		SCORES,
+		INSTRUCTIONS,
+		GAME,
+		END,
+		BACK,
+		GAME_OVER
+	};
 	//window
-	int level = 1;
+	GameState game_state;
+	int level = 4;
 	sf::RenderWindow* window;
 
 
 	//resources
 	sf::Clock clock;
-
+	sf::Font font2;
+	sf::Text frameRateText;
 	std::map<std::string, sf::Texture*> textures;
 	std::vector<Bullet*> bullets;
 	std::vector<Star*> stars;
@@ -25,6 +37,13 @@ private:
 	//Player
 	Player* player;
 	UI* ui;
+
+	//game events
+	void handleMenuEvents(sf::Event &event);
+	void handleInstructionsEvents(sf::Event& event);
+	void handleGameEvents(sf::Event& event);
+	void handleEndEvents(sf::Event& event);
+	void handleGameOverEvents(sf::Event& event);
 
 
 
@@ -38,6 +57,9 @@ private:
 	float spawnTimermax;
 	std::vector<Enemy*>enemies;
 	Enemy* enemy;
+	std::vector<Enemy*>boss;
+	
+	bool bossSpawned=false;
 
 
 	//private functions
@@ -60,6 +82,7 @@ public:
 	int getlevel();
 	void updatelevel();
 	void updatePollEvents();
+	void handleResize();
 	void updateInput();
 	void updateEnemiesCombat();
 	void updateEnemies();
