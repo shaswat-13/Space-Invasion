@@ -22,12 +22,14 @@ private:
 	};
 	//window
 	GameState game_state;
-	int level = 4;
+	int level = 5;
+	int lives = 3;
 	sf::RenderWindow* window;
-
+	bool isPulsating;
 
 	//resources
 	sf::Clock clock;
+	sf::Clock eventclock;
 	sf::Font font2;
 	sf::Text frameRateText;
 	std::map<std::string, sf::Texture*> textures;
@@ -81,8 +83,14 @@ public:
 	int getpoints();
 	int getlevel();
 	void updatelevel();
+	int getlives();
+	void updatelives();
+
 	void updatePollEvents();
+	void handleWindowResize(unsigned int,unsigned int);
 	void handleResize();
+
+	void updateeffects();
 	void updateInput();
 	void updateEnemiesCombat();
 	void updateEnemies();
@@ -90,6 +98,7 @@ public:
 	void updateStars();
 	void updateUI();
 	void update();
+
 	void renderUI();
 	void render();
 	void resetgame();

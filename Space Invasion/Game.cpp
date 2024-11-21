@@ -16,7 +16,7 @@ void Game::initwindow()
 	);
 
 	this->window->setFramerateLimit(60);
-	this->window->setVerticalSyncEnabled(false);
+	this->window->setVerticalSyncEnabled(true);
 }
 
 void Game::initPlayer()
@@ -73,7 +73,7 @@ Game::Game()
 		std::cout << "Error: Font not loaded\n";
 	}
 
-
+	this->updatePollEvents();
 	this->initwindow();
 	this->initUI();
 
@@ -110,32 +110,28 @@ Game::~Game()
 void Game::run()
 {
 	sf::Event event;
-	while (this->window->isOpen())
+	while (this->window && this->window->isOpen())
 	{
 		while (window->pollEvent(event))
 		{
-			float deltaTime = clock.restart().asSeconds();  // Time since last frame in seconds
-			float frameRate = 1.0f / deltaTime;  // FPS calculation (1 / deltaTime)
 
-			// Display the frame rate
-			
-			frameRateText.setFont(font2);
-			frameRateText.setString("FPS: " + std::to_string((int)frameRate));  // Convert float to string
-			frameRateText.setCharacterSize(24);  // Font size
-			frameRateText.setFillColor(sf::Color::White);  // Text color
-			frameRateText.setPosition(10.f, 10.f);  // Position on the screen
-
-			this->window->draw(frameRateText);
 			// Render stars (background)
 			for (auto* star : this->stars)
+			{
+				if (!star)
+				{
+					std::cerr << "Null star detected!" << std::endl;
+					continue;
+				}
 				star->render(*this->window);
+			}
+
 			if (event.type == sf::Event::Closed)
 			{
 				std::cout << "Window closed \n";
 				window->close();
 			}
 
-			// Handle game state transitions
 			switch (game_state)
 			{
 			case GameState::MENU:
@@ -159,25 +155,37 @@ void Game::run()
 				break;
 
 			default:
+				std::cerr << "Unknown game_state: " << static_cast<int>(game_state) << std::endl;
 				break;
 			}
 		}
 
 		// Clear the screen
+		if (!window)
+		{
+			std::cerr << "Window is null during rendering!" << std::endl;
+			return;
+		}
 		window->clear(sf::Color::Black);
-		// Render stars (background)
+
+		// Render stars
 		this->updateStars();
 		for (auto* star : this->stars)
+		{
+			if (!star)
+				continue;
 			star->render(*this->window);
-		// Render based on the current game state
+		}
+
+		// Render based on game state
 		switch (game_state)
 		{
 		case GameState::MENU:
-			this->ui->load_menu();
+			if (ui) ui->load_menu();
 			break;
 
 		case GameState::INSTRUCTIONS:
-			this->ui->load_instructions();
+			if (ui) ui->load_instructions();
 			break;
 
 		case GameState::GAME:
@@ -186,18 +194,20 @@ void Game::run()
 			break;
 
 		case GameState::END:
-			this->ui->endgame(); // Show end-game UI
+			if (ui) ui->endgame();
 			break;
 
 		case GameState::GAME_OVER:
-			window->draw(this->ui->back_button);
+			if (ui) ui->endgame();
+			if (ui) window->draw(this->ui->back_button);
 			break;
+
 		default:
-			this->ui->load_menu();
+			std::cerr << "Rendering default menu for unknown game_state!" << std::endl;
+			if (ui) ui->load_menu();
 			break;
 		}
 
-		// Display the drawn frame
 		window->display();
 	}
 }
@@ -303,65 +313,116 @@ void Game::updatelevel()
 
 
 }
+int Game::getlives()
+{
+	return this->lives;
+}
+void Game::updatelives() {
+	this->lives -= 1;  // Decrease player lives
+	this->player->sethpmax();  // Reset health to max
+	// Move player to the center of the window
+	this->player->setpos(this->window->getSize().x / 2.f, this->window->getSize().y / 2.f);
+
+}
+
+
 
 void Game::updatePollEvents()
 {
-    sf::Event e;
-    while (this->window->pollEvent(e))
-    {
-        // Handle window close
-        if (e.type == sf::Event::Closed)
-        {
-            this->window->close();
-        }
+	sf::Event e;
+	while (this->window && this->window->pollEvent(e))
+	{
+		if (e.type == sf::Event::Closed)
+		{
+			this->window->close();
+		}
+		else if (e.type == sf::Event::KeyPressed)
+		{
+			std::cout << "Key pressed: " << e.key.code << std::endl;
 
-        // Handle fullscreen/windowed toggle on F1 key press
-        if (e.type == sf::Event::KeyPressed && e.key.code == sf::Keyboard::F)
-        {
+			if (e.key.code == sf::Keyboard::F)
+			{
 			std::cout << "F key pressed, toggling fullscreen.\n";
+			handleResize();
+		    }
+		}
+		else if (e.type == sf::Event::Resized)
+		{
+			// Handle window resize (e.g., maximize button or manual resize)
+			std::cout << "Window resized to: " << e.size.width << "x" << e.size.height << std::endl;
+			handleWindowResize(e.size.width, e.size.height);
+		}
+	}
+}
 
-            handleResize();
-        }
-    }
+
+void Game::handleWindowResize(unsigned int width, unsigned int height)
+{
+	if (this->window)
+	{
+		// Update the viewport to match the new window size
+		sf::FloatRect visibleArea(0, 0, static_cast<float>(width), static_cast<float>(height));
+		this->window->setView(sf::View(visibleArea));
+
+		// Reinitialize any resources that depend on the new size
+		this->initStars();       // Adjust stars for the new resolution
+		this->ui->update();      // Update UI elements for the new resolution
+	}
 }
 
 void Game::handleResize()
 {
 	static bool isFullScreen = true;
 
-	// Destroy the current window
-	delete this->window;
+	// Close the current window
+	if (this->window)
+	{
+		this->window->close();
+		delete this->window;
+		this->window = nullptr;
+	}
 
 	if (isFullScreen)
 	{
-		// Create a windowed mode (1200x800)
+		// Switch to windowed mode (1200x800)
 		this->window = new sf::RenderWindow(
-			sf::VideoMode(1200, 800), // Windowed resolution
+			sf::VideoMode(1200, 800),
 			"Space Invasion",
 			sf::Style::Resize | sf::Style::Close | sf::Style::Titlebar
 		);
 	}
 	else
 	{
-		// Create fullscreen mode
+		// Switch to fullscreen mode
 		this->window = new sf::RenderWindow(
-			sf::VideoMode::getFullscreenModes()[0], // Best fullscreen resolution
+			sf::VideoMode::getFullscreenModes()[0],
 			"Space Invasion",
 			sf::Style::Fullscreen
 		);
 	}
 
+	// Ensure the new window is active
+	this->window->setActive(true);
+
 	// Toggle the mode
 	isFullScreen = !isFullScreen;
 
 	// Reinitialize resources dependent on the window
-	this->initStars(); // Adjust stars for the new resolution
-	this->ui->update(); // Update UI elements
-	this->ui->load_menu(); // Reload menu if applicable
+	this->initStars();       // Adjust stars for the new resolution
+	this->ui->update();      // Update UI elements for the new resolution
+	this->ui->load_menu();   // Reload menu (if applicable)
 }
+
+
 	
 
 	
+
+
+void Game::updateeffects() {
+	
+}
+
 
 
 void Game::updateInput()
@@ -383,6 +444,7 @@ void Game::updateInput()
 		
 	}
 	this->player->update(this->level);
+
 }
 
 
@@ -433,7 +495,7 @@ void Game::updateEnemies() {
 			this->enemies[i]->updateattack(this->getlevel());
 
 			// Remove enemy if out of bounds
-			if (this->enemies[i]->getBounds().top > this->window->getSize().y) {
+			if (this->enemies[i]->getBounds(false).top > this->window->getSize().y) {
 				delete this->enemies[i];
 				this->enemies.erase(this->enemies.begin() + i);
 				--i;
@@ -445,7 +507,7 @@ void Game::updateEnemies() {
 				this->enemyBullets.push_back(new Bullet(
 					this->textures["BULLET"],
 					this->enemies[i]->getPos(false).x + 20,
-					this->enemies[i]->getBounds().top + this->enemies[i]->getBounds().height,
+					this->enemies[i]->getBounds(false).top + this->enemies[i]->getBounds(false).height,
 					0.f, 1.f, 3.f * level, 2 * level, this->level
 				)); // Downward bullet
 			}
@@ -522,36 +584,82 @@ void Game::updateEnemyBullets()
 }
 void Game::updateEnemiesCombat()
 {
-	for (size_t i = 0; i < this->enemies.size(); ++i)
+	// Iterate over enemies
+	for (size_t i = 0; i < this->enemies.size();)
 	{
 		bool enemy_removed = false;
 
-		// Check collision with bullets
+		// Check collision with bullets for enemies
 		for (size_t k = 0; k < this->bullets.size() && !enemy_removed; ++k)
 		{
-			if (this->bullets[k]->getBounds().intersects(this->enemies[i]->getBounds()))
+			if (this->bullets[k]->getBounds().intersects(this->enemies[i]->getBounds(false)))
 			{
+				std::cout << "Collision detected!" << std::endl;
+
 				this->points += this->enemies[i]->getPoints();
 				delete this->bullets[k];
 				this->bullets.erase(this->bullets.begin() + k);
 				delete this->enemies[i];
 				this->enemies.erase(this->enemies.begin() + i);
 				enemy_removed = true;
+				break; // Exit inner loop
 			}
 		}
 
 		// Check collision with player if enemy is still present
-		if (!enemy_removed && this->enemies[i]->getBounds().intersects(this->player->getBounds()))
+		if (!enemy_removed && this->enemies[i]->getBounds(false).intersects(this->player->getBounds()))
 		{
-			// Handle player hit (e.g., decrease health)
-
-			this->player->losehp(enemies[i]->getDamage());
+			this->player->losehp(this->enemies[i]->getDamage());
 			delete this->enemies[i];
 			this->enemies.erase(this->enemies.begin() + i);
+			enemy_removed = true;
+		}
 
+		// If the enemy was not removed, continue with the next one
+		if (!enemy_removed) {
+			++i;
+		}
+	}
+
+	// Iterate over bosses
+	for (size_t j = 0; j < this->boss.size();)
+	{
+		bool boss_removed = false;
+		Enemy* boss = this->boss[j]; // Get the current boss
+
+		// Check collision with bullets for boss
+		for (size_t k = 0; k < this->bullets.size() && !boss_removed; ++k)
+		{
+			if (this->bullets[k]->getBounds().intersects(boss->getBounds(true)))
+			{
+				delete this->bullets[k];
+				this->bullets.erase(this->bullets.begin() + k);
+				boss->takeDamage(this->player->give_damage());
+				std::cout <<"damage" << this->player->give_damage();
+			}
+		}
+
+		// Check collision with player if boss is still present
+		if (!boss_removed && boss->getBounds(true).intersects(this->player->getBounds()))
+		{
+			this->player->losehp(boss->getDamage());
+		}
+
+		// If boss is defeated
+		if (boss->gethp() == 0)
+		{
+			this->boss.erase(this->boss.begin() + j);
+			delete boss;
+			boss_removed = true;
+		}
+
+		// If the boss was not removed, continue with the next one
+		if (!boss_removed) {
+			++j;
 		}
 	}
 }
+
 
 void Game::updateBullets()
 {
@@ -584,25 +692,36 @@ void Game::updateStars()
 }
 
 void Game::updateUI() {
-	if (this->player->getHp() == 0) {
+
+	//game over
+	if (this->getlives() == 0)
+	{
 		this->game_state = GameState::GAME_OVER;
 	}
+	
+	//updatehearts
+	if (this->player->getHp() == 0) 
+	{
+		this->updatelives();
+	}
 	float playerHealthPercent = (this->player->getHp() / this->player->getHpMax());
-	this->ui->updateHealthBar(playerHealthPercent, this->player->getPos().x + 10, this->player->getPos().y + 95,sf::Color::Green);
+
+	this->ui->updateHearts(this->getlives(),playerHealthPercent);
+
+	this->ui->updateHealthBar(playerHealthPercent, this->player->getPos().x + 16, this->player->getPos().y +120.f,sf::Color::Green);
 
 	if (!this->boss.empty()) {
 		Enemy* boss = this->boss.front();  // Assuming only one boss
 		float bossHealthPercent = (boss->gethp() / boss->gethpmax());
-		std::cerr << boss->gethp();
 		// Update the health bar of the boss
-		this->ui->updatebossHealthBar(bossHealthPercent, boss->getPos(true).x + 10, boss->getPos(true).y, sf::Color::Red);  // Red for boss
+		this->ui->updatebossHealthBar(bossHealthPercent, boss->getPos(true).x + 43.f, boss->getPos(true).y, sf::Color::Red);  // Red for boss
 
 	}
 
 	// Dynamically position score based on window size
 	sf::Vector2u windowSize = this->window->getSize();
-	float scorePosX = windowSize.x * 0.85f; // 85% of the window width
-	float scorePosY = windowSize.y * 0.05f; // 5% from the top of the window
+	float scorePosX = windowSize.x * 0.05f; // 85% of the window width
+	float scorePosY = windowSize.y * 0.10f; // 5% from the top of the window
 
 	int score = this->getpoints();
 	if (score > 5 * this->getlevel()) {
@@ -621,13 +740,16 @@ void Game::updateUI() {
 
 void Game::update()
 {
-	this->ui->update();
 	this->updatePollEvents();
+
+	this->ui->update();
 	this->updateStars();
 
-	if (this->player->getHp() != 0 && game_state == GameState::GAME) {
+	if (this->getlives() != 0 && game_state == GameState::GAME) {
+		
 		this->updateInput();
 		this->player->updateAttack(this->getlevel());
+		
 		this->updateBullets();
 		this->updateEnemies();
 		this->updateEnemiesCombat();
@@ -671,11 +793,14 @@ void Game::render() {
 
 
 void Game::resetgame() {
+	window->clear();
 	this->player->resetstats();  // Reset player stats like health
-	this->player->move(this->window->getSize().x / 2.f, this->window->getSize().y - 50.f, *window);
+	this->player->move(this->window->getSize().x / 2.f, this->window->getSize().y/2.f, *window);
 	this->level = 1;
+	this->lives = 3;
 	this->points = 0;
 	this->updateStars();
+	this->bossSpawned = false;
 	// Clear existing game objects
 	this->bullets.clear();
 	this->enemyBullets.clear();

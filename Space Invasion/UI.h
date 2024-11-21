@@ -20,10 +20,14 @@ public:    //Gamestate
     sf::Text scores_button;
     sf::RectangleShape scores_button_outline;
 
-    //back button
     // back button
+    sf::Text score;
     sf::Text back_button;
     sf::RectangleShape back_button_outline;
+    sf::Text Replay;
+    sf::RectangleShape Replay_outline;
+    sf::Text Close;
+    sf::RectangleShape Close_outline;
 
     // variables for instructions elements
     sf::Text how_to_play_title;
@@ -55,10 +59,14 @@ public:    //Gamestate
     sf::RectangleShape hpback;
     sf::RectangleShape bosshpbar;
     sf::RectangleShape bosshpback;
-    sf::Sprite heart;
+
+
+    sf::Sprite hearts[3];
     sf::Texture heartTexture;
-    sf::Sprite explosion;
+    sf::RectangleShape livesContainer;
+    sf::RectangleShape scoreLevelContainer;
     sf::Texture exptext;
+    sf::Sprite explosion;
 
 public:
     // Constructor initializes window reference
@@ -69,7 +77,7 @@ public:
 
     // Function to update health bar based on current health percentage
     void updateHealthBar(float healthPercent, float posx, float posy, sf::Color color);
-    void updateHeart(float healthPercent);
+    void updateHearts(int lives,float healthPercent);
     void updatebossHealthBar(float healthPercent, float posx, float posy, sf::Color color);
     void updateexplosion(float posx, float posy);
 

@@ -8,6 +8,7 @@ void Player::initVariables()
 	this->attackCooldown = this->attackCooldownmax;
 	this->hpmax = 50;
 	this->hp = this->hp;
+	this->damage = 10.f;
 
 
 }
@@ -28,7 +29,7 @@ void Player::initSprite()
 	this->sprite.setTexture(this->texture);
 
 	// resize
-	this->sprite.scale(0.12f, 0.12f);
+	this->sprite.scale(0.13f, 0.13f);
 
 
 
@@ -63,11 +64,27 @@ const float& Player::getHpMax() const
 	return this->hpmax;
 }
 
+void Player::sethpmax()
+{
+	this->hp = this->hpmax;
+}
+
 void Player::losehp(int damage)
 {
 	this->hp -= damage;
 	if (this->hp < 0)
 		this->hp = 0;
+
+}
+
+float Player::give_damage()
+{
+	return this->damage;
+}
+
+void Player::setpos(int height, int width)
+{
+	this->sprite.setPosition(width,height);
 
 }
 
@@ -135,6 +152,7 @@ void Player::updateAttack(int x)
 void Player::update(int x)
 {
 	this->movementSpeed = std::min(5.f, 2.f + 0.5f * x);
+	this->damage = std::min((float)x * 10.0f, 500.0f);  // For example, cap damage at 500
 
 }
 
@@ -146,4 +164,9 @@ void Player::resetstats()
 void Player::render(sf::RenderTarget& target)
 {
 	target.draw(this->sprite);
+}
+
+void Player::pulsating(int alpha)
+{
+
 }

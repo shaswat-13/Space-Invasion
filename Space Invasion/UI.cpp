@@ -31,45 +31,20 @@ void UI::initializeHealthBar() {
 void UI::updateHealthBar(float healthPercent, float posx, float posy, sf::Color color)
 {
     // Calculate the width based on health percentage
-    float maxBarWidth = 55.f;
+    float maxBarWidth = 68.f;
     float currentBarWidth = healthPercent * maxBarWidth;
 
     
     this->hpback.setPosition(posx-2, posy+3); // Set position for the background bar
     this->hpback.setFillColor(sf::Color(25, 25, 25));
     this->hpback.setOutlineThickness(1.f);
-    this->hpback.setOutlineColor(sf::Color::White);
+    this->hpback.setOutlineColor(sf::Color::Black);
 
     this->hpbar.setSize(sf::Vector2f(currentBarWidth, 3.f));
     this->hpbar.setPosition(posx-2, posy+3); // Set position for the background bar
     this->hpbar.setOutlineThickness(1.f);
-    this->hpbar.setOutlineColor(sf::Color::Red);
+    this->hpbar.setOutlineColor(sf::Color::Black);
     
-
-    this->heart.setPosition(posx -25, posy-8);
-    this->heart.setScale(0.03, 0.03);
-    int frameIndex = 0;
-    if (healthPercent > 0.8f) {
-        frameIndex = 0; // Full heart
-    }
-    else if (healthPercent > 0.6f) {
-        frameIndex = 1; // 80% heart
-    }
-    else if (healthPercent > 0.4f) {
-        frameIndex = 2; // 60% heart
-    }
-    else if (healthPercent > 0.1f) {
-        frameIndex = 3; // 40% heart
-    }
-    else  {
-        frameIndex = 4; // Empty heart
-    }
-
-    const int frameWidth = 669; // Width of each frame
-    const int frameheight = 603;
-    
-
-    this->heart.setTextureRect(sf::IntRect(frameWidth * frameIndex , 0, frameWidth, frameheight));
 
     // Change color based on health percentage
     if (healthPercent > 0.4f) {
@@ -82,10 +57,33 @@ void UI::updateHealthBar(float healthPercent, float posx, float posy, sf::Color 
     }
 
 }
-void UI::updateHeart(float healthPercent)
-{
+void UI::updateHearts(int lives, float healthPercent) {
+    for (int i = 0; i < 3; ++i) {
+        int frameIndex = 4; // Default to empty heart
 
+        if (i < lives) { // Only update hearts for remaining lives
+            if (i == lives - 1) {
+                // Update the heart corresponding to the last remaining life
+                if (healthPercent > 0.8f) frameIndex = 0; // Full heart
+                else if (healthPercent > 0.6f) frameIndex = 1; // 80% heart
+                else if (healthPercent > 0.4f) frameIndex = 2; // 60% heart
+                else if (healthPercent > 0.1f) frameIndex = 3; // 40% heart
+            }
+            else {
+                // Hearts not corresponding to the last remaining life stay full
+                frameIndex = 0;
+            }
+        }
+
+        const int frameWidth = 669;
+        const int frameHeight = 603;
+
+        // Map hearts array index (left-to-right)
+        hearts[i].setTextureRect(sf::IntRect(frameWidth * frameIndex, 0, frameWidth, frameHeight));
+    }
 }
+
+
 void UI::updatebossHealthBar(float healthPercent, float posx, float posy, sf::Color color) {
     // Calculate the width based on health percentage
     float maxBarWidth = 70.f;
@@ -97,13 +95,9 @@ void UI::updatebossHealthBar(float healthPercent, float posx, float posy, sf::Co
     this->bosshpbar.setSize(sf::Vector2f(currentBarWidth, 3.f));
     this->bosshpbar.setPosition(posx, posy); // Set position for the background bar
     // Change color based on health percentage
-    if (healthPercent > 0.5f) {
+    
         this->bosshpbar.setFillColor(color); // Green for healthy
-    }
-    else {
-        this->bosshpbar.setFillColor(sf::Color::Red); // Red for low health
-    }
-
+    
 
 }
 
@@ -117,22 +111,22 @@ void UI::updateexplosion(float posx, float posy)
 
 void UI::updateScoreAndLevel(int score, int level,float x, float y)
 {
-    this->ptext.setPosition(690, 25);
-    this->ptext.setString("Score:" + std::to_string(score) + "\nLevel: " + std::to_string(level));
+
+    this->ptext.setString("Score:" + std::to_string(score) + "\nLevel:" + std::to_string(level));
+    this->ptext.setCharacterSize(30);
     this->ptext.setPosition(x, y);
 
 }
 
 void UI::endgame()
 {
-    this->GameOver.setString("Game Over");
-    this->GameOver.setPosition(
-        this->window.getSize().x / 2.f - this->GameOver.getGlobalBounds().width / 2.f,
-        this->window.getSize().y / 2.f - this->GameOver.getGlobalBounds().height / 2.f);
+    window.draw(GameOver);
 
 }
 
 void UI::initGUI() {
+    sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
+
     if (!this->font.loadFromMemory(CosmicAlien_ttf,CosmicAlien_ttf_len)) {
         std::cout << "Error: Font not loaded\n";
     }
@@ -145,26 +139,38 @@ void UI::initGUI() {
             << this->heartTexture.getSize().x << "x"
             << this->heartTexture.getSize().y << std::endl;
     }
-    this->heart.setTexture(heartTexture);
-    
+    for (int i = 0; i < 3; ++i) {
+        hearts[i].setTexture(heartTexture);
+        hearts[i].setScale(0.07f, 0.07f); // Adjust size (10% of original texture size)
+        hearts[i].setPosition(0.05*desktopMode.width + i * 50.f, desktopMode.height*0.05); // Increase spacing between hearts
+
+        // Full heart frame initially
+        hearts[i].setTextureRect(sf::IntRect(0, 0, 669, 603));
+        hearts[i].setColor(sf::Color(255, 50,50, 255)); // Fully opaque red
+
+    }
+   
+
     this->ptext.setFont(this->font);
     this->ptext.setCharacterSize(25);
     this->ptext.setFillColor(sf::Color::Red);
 
-    this->GameOver.setFont(this->font);
-    this->GameOver.setCharacterSize(60);
-    this->GameOver.setFillColor(sf::Color::Red);
+   
 
 
 }
 
 void UI::render(sf::RenderTarget* target) {
+    
+    
     // Draw background bar first
     target->draw(this->hpback);
 
     // Draw the health bar on top of the background
     target->draw(this->hpbar);
-    target->draw(this->heart);
+    for (int i = 0; i < 3; ++i) {
+        target->draw(hearts[i]);
+    }
 
     target->draw(this->bosshpback);
     target->draw(this->bosshpbar);
@@ -173,7 +179,7 @@ void UI::render(sf::RenderTarget* target) {
     // Optionally, draw the score and level text
     target->draw(this->ptext);
 
-    target->draw(this->GameOver);
+    
 }
 
 void UI::update()
@@ -245,6 +251,43 @@ void UI::set_menu_objects(int width, int height)
     scores_button_outline.setOutlineColor(sf::Color::White);
     scores_button_outline.setFillColor(sf::Color::Black);
     scores_button_outline.setOutlineThickness(3.0f);
+    
+    //Replay button
+    Replay.setString("PlAY AGAIN");
+    Replay.setFont(font);
+    Replay.setFillColor(sf::Color::White);
+    Replay.setCharacterSize(30);
+    Replay.setPosition(0.5f * width-Replay.getGlobalBounds().width/2.f,0.4f*height+GameOver.getGlobalBounds().height+5);
+
+    Replay_outline.setFillColor(sf::Color::Black);
+    Replay_outline.setOutlineColor(sf::Color::White);
+    Replay_outline.setOutlineThickness(2.0f);
+    Replay_outline.setSize(sf::Vector2f(Replay.getGlobalBounds().width + 20, Replay.getGlobalBounds().height + 20));
+    Replay_outline.setPosition(0.5f * width - Replay.getGlobalBounds().width / 2.f, 0.4f * height + GameOver.getGlobalBounds().height + 5);
+
+    //Exit Game button
+    Close.setString("EXIT GAME");
+    Close.setFont(font);
+    Close.setFillColor(sf::Color::White);
+    Close.setCharacterSize(30);
+    Close.setPosition(0.5f * width - Close.getGlobalBounds().width / 2.f, 0.4f * height + Close.getGlobalBounds().height + 5 + Replay_outline.getGlobalBounds().height);
+
+    Close_outline.setFillColor(sf::Color::Black);
+    Close_outline.setOutlineColor(sf::Color::White);
+    Close_outline.setOutlineThickness(2.0f);
+    Close_outline.setSize(sf::Vector2f(Close.getGlobalBounds().width + 20, Close.getGlobalBounds().height + 20));
+    Close_outline.setPosition(0.5f * width - Close.getGlobalBounds().width / 2.f, 0.4f * height + Close.getGlobalBounds().height + 5+Replay_outline.getGlobalBounds().height);
+
+    //Gameover
+    GameOver.setString("GAME OVER");
+    GameOver.setFont(font);
+    GameOver.setFillColor(sf::Color::Red);
+    GameOver.setCharacterSize(titleSize);
+    sf::FloatRect gameBounds = GameOver.getGlobalBounds(); 
+    GameOver.setPosition( GameOver.getGlobalBounds().width/2.f - gameBounds.width / 2.0f,0.4f*height);
+
+    //Score
+    
 }
 
 

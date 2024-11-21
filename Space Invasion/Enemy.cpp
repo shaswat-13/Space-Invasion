@@ -30,16 +30,15 @@ void Enemy::initVariables(bool isBoss)
     if (isBoss) {
         // Boss color
         this->speed = 0.5f;   // Higher health for boss
-        this->hpMax = 500;
+        this->hpMax = 5000.f;
         // Slower for boss
         this->hp = this->hpMax;
-        this->damage = 10; // Boss damage
+        this->damage = 10.f; // Boss damage
     
     }
     else {
         // Minion color
         this->speed = 1.f + 0.1f * level;                    // Faster minions
-        this->hp = 10 + level * 2;                       // Minion health
         this->damage = 2;
         this->points = 5;
     }
@@ -175,17 +174,23 @@ void Enemy::validatePosition(float& posx, float& posy)
   
 }
 
-const sf::FloatRect Enemy::getBounds() const
+const sf::FloatRect Enemy::getBounds(bool isBoss) const
 {
-    return this->EnemyShips.getGlobalBounds();
+    if (isBoss)
+        return this->boss.getGlobalBounds();
+    else
+        return this->EnemyShips.getGlobalBounds();
 }
 
 
 
 
-void Enemy::takeDamage(int damage) {
-    this->hp -= damage;
-    if (this->hp < 0) this->hp = 0;
+void Enemy::takeDamage(float damage) {
+    if (this->hp == 0.f) {
+        this->hp = 0.f;
+        return;
+    }
+    this->hp =this->hp- damage;
 }
 
 const int& Enemy::getPoints() const
@@ -194,7 +199,7 @@ const int& Enemy::getPoints() const
     return this->points;
 }
 
-const int& Enemy::getDamage() const
+const float& Enemy::getDamage() const
 {
     return this->damage;
 }

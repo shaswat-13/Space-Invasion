@@ -13,7 +13,7 @@ private:
     unsigned pointCount;
     float hp;
     float hpMax;
-    int damage;
+    float damage;
     int bulletDamage;
     int points;
     int level;
@@ -38,14 +38,14 @@ public:
 
 
     // Accessors
-    const sf::FloatRect getBounds() const;
-    void takeDamage(int damage);
+    const sf::FloatRect getBounds(bool isBoss) const;
+    void takeDamage(float damage);
     bool isDead() const;
 
     void updateattack(int x);
     const bool canShoot();
     const int& getPoints() const;
-    const int& getDamage() const;
+    const float& getDamage() const;
     float gethp();
     float gethpmax();
     const int& getBulletDamage() const;
