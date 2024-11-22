@@ -2,7 +2,7 @@
 #include"bullet1.h"
 #include <cmath> // For atan2 and other math functions
 #include "font2.h"
-
+#include<fstream>
 // Initialization functions...
 
 
@@ -87,7 +87,6 @@ Game::Game()
 	
 	this->initEnemies();
 	this->initSystems();
-	
 }
 
 Game::~Game()
@@ -158,6 +157,8 @@ void Game::run()
 			case GameState::GAME_OVER:
 				handleGameOverEvents(event);
 				break;
+			case GameState::SCORES:
+				handlescoreevents(event);
 
 			default:
 				std::cerr << "Unknown game_state: " << static_cast<int>(game_state) << std::endl;
@@ -198,13 +199,21 @@ void Game::run()
 			this->render();
 			break;
 
+		case GameState::Name_Input:
+			getPlayerNameInput();  // Get player name
+			if (!playerName.empty()) {  // If a name is entered, start the game
+				game_state = GameState::GAME;
+			}
+
 		case GameState::END:
 			if (ui) ui->endgame();
 			break;
 
 		case GameState::GAME_OVER:
 			if (ui) ui->endgame();
-			
+
+		case GameState::SCORES:
+			displayHighScore ();
 			break;
 
 		default:
@@ -265,7 +274,9 @@ void Game::handleGameEvents(sf::Event& event)
 	if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
 	{
 		std::cout << "Pause / Exit Pressed \n";
-		game_state = GameState::MENU;
+		
+		game_state = GameState::Name_Input;
+
 	}
 }
 
@@ -303,6 +314,21 @@ void Game::handleGameOverEvents(sf::Event& event) {
 		}
 
 	}
+}
+
+void Game::handlescoreevents(sf::Event& event)
+{
+	if (event.type == sf::Event::MouseButtonPressed)
+	{
+		sf::Vector2i mousePosition = sf::Mouse::getPosition(*window);
+
+		if (this->ui->back_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+		{
+			std::cout << "Back Button Pressed \n";
+			game_state = GameState::MENU;
+		}
+	}
+
 }
 		
 
@@ -446,10 +472,6 @@ void Game::handleResize()
 	
 
 
-void Game::updateeffects() {
-	
-}
-
 
 
 void Game::updateInput()
@@ -542,28 +564,35 @@ void Game::updateEnemies() {
 	}
 
 	// Spawn the boss at level 5
-	if (this->level == 5 && !bossSpawned) {
-		Enemy* boss = this->boss.front(); // Assuming only one boss
+	if(this->level == 5 && !bossSpawned) {
+		// Add the new boss first
+		this->boss.push_back(new Enemy(
+			this->window->getSize().x / 2.f - 100.f,  // Adjust positioning as needed
+			-300.f, this->level, true));
 
-		this->boss.push_back(new Enemy(this->window->getSize().x / 2.f -boss->getBounds(true).width, -300.f, this->level, true));
+		// Access the newly added boss
+		Enemy* boss = this->boss.back();
+
 		bossSpawned = true;
+
 		// Delete all remaining bullets
-		for (size_t i = 0; i < this->enemyBullets.size(); ++i) 
-		{
+		for (size_t i = 0; i < this->enemyBullets.size(); ++i) {
 			delete this->enemyBullets[i];
 		}
 		this->enemyBullets.clear();
 	}
 
+
 	// Update the boss if present
 	if (!this->boss.empty()) {
-		Enemy* boss = this->boss.front(); // Assuming only one boss
-		float targetHeight = 20.f;       // The height where the boss should stop moving down
+		Enemy* boss = this->boss.front();  // Safely access the first boss
+		float targetHeight = 20.f;
 
 		if (boss->getPos(true).y < targetHeight) {
-			boss->update(true); // Update the boss only if it hasn't reached the target height
+			boss->update(true);  // Update only if the boss is above the target height
 		}
 	}
+
 }
 
 
@@ -764,6 +793,88 @@ void Game::updateUI() {
 	// Check if the player's HP is zero to end the game
 	
 }
+
+void Game::saveScore() {
+	std::ofstream file("Fonts/highscores.txt", std::ios::app);
+	if (file.is_open()) {
+		file << this->playerName << ": " << this->getpoints() << "\n";  // Save name and score
+		file.close();
+	}
+}
+
+void Game::displayHighScore() {
+	std::ifstream file("Fonts/highscores.txt");
+	std::vector<std::pair<std::string, int>> scores;
+	std::string name;
+	int score;
+
+	// Read scores from the file
+	if (file.is_open()) {
+		while (file >> name >> score) {
+			scores.push_back({ name, score });
+		}
+		file.close();
+	}
+
+	// Sort scores in descending order
+	std::sort(scores.rbegin(), scores.rend(), [](const auto& a, const auto& b) {
+		return a.second < b.second;  // Sort by score
+		});
+
+	// Display top 3 scores
+	std::string topScoresText;
+	for (size_t i = 0; i < std::min<size_t>(3, scores.size()); ++i) {
+		topScoresText += scores[i].first + ": " + std::to_string(scores[i].second) + "\n";
+	}
+
+	this->highScoreText.setString(topScoresText);
+	this->window->draw(this->highScoreText);
+}
+void Game::getPlayerNameInput() {
+	sf::Text usernamePrompt;
+	usernamePrompt.setFont(this->font2);
+	usernamePrompt.setString("Enter your name:");
+	usernamePrompt.setCharacterSize(30);
+	usernamePrompt.setFillColor(sf::Color::White);
+	usernamePrompt.setPosition(this->window->getSize().x / 2.f - 100.f, this->window->getSize().y / 3.f);
+
+	sf::Text usernameInput;
+	usernameInput.setFont(this->font2);
+	usernameInput.setCharacterSize(30);
+	usernameInput.setFillColor(sf::Color::Yellow);
+	usernameInput.setPosition(this->window->getSize().x / 2.f - 100.f, this->window->getSize().y / 2.f);
+
+	std::string username;
+
+	while (this->window->isOpen()) {
+		sf::Event event;
+		while (this->window->pollEvent(event)) {
+			if (event.type == sf::Event::Closed) {
+				this->window->close();
+			}
+			if (event.type == sf::Event::TextEntered) {
+				if (event.text.unicode == '\b' && !username.empty()) {  // Handle backspace
+					username.pop_back();
+				}
+				else if (event.text.unicode < 128 && event.text.unicode != '\b') {  // Handle ASCII input
+					username += static_cast<char>(event.text.unicode);
+				}
+			}
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
+				this->playerName = username;
+				return;
+			}
+		}
+
+		usernameInput.setString(username);
+
+		this->window->clear();
+		this->window->draw(usernamePrompt);
+		this->window->draw(usernameInput);
+		this->window->display();
+	}
+}
+
 
 
 
