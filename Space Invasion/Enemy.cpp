@@ -186,11 +186,11 @@ const sf::FloatRect Enemy::getBounds(bool isBoss) const
 
 
 void Enemy::takeDamage(float damage) {
-    if (this->hp == 0.f) {
+    this->hp = this->hp - damage;
+    if (this->hp <= 0.f) {
         this->hp = 0.f;
-        return;
     }
-    this->hp =this->hp- damage;
+  
 }
 
 const int& Enemy::getPoints() const

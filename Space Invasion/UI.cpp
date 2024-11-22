@@ -115,12 +115,17 @@ void UI::updateScoreAndLevel(int score, int level,float x, float y)
     this->ptext.setString("Score:" + std::to_string(score) + "\nLevel:" + std::to_string(level));
     this->ptext.setCharacterSize(30);
     this->ptext.setPosition(x, y);
-
+    this->finalscore = score;
 }
+
 
 void UI::endgame()
 {
     window.draw(GameOver);
+    window.draw(score);
+    window.draw(Replay);
+    window.draw(Close);
+
 
 }
 
@@ -256,38 +261,75 @@ void UI::set_menu_objects(int width, int height)
     Replay.setString("PlAY AGAIN");
     Replay.setFont(font);
     Replay.setFillColor(sf::Color::White);
-    Replay.setCharacterSize(30);
-    Replay.setPosition(0.5f * width-Replay.getGlobalBounds().width/2.f,0.4f*height+GameOver.getGlobalBounds().height+5);
+    Replay.setCharacterSize(titleSize * 0.8f);
 
     Replay_outline.setFillColor(sf::Color::Black);
     Replay_outline.setOutlineColor(sf::Color::White);
     Replay_outline.setOutlineThickness(2.0f);
     Replay_outline.setSize(sf::Vector2f(Replay.getGlobalBounds().width + 20, Replay.getGlobalBounds().height + 20));
-    Replay_outline.setPosition(0.5f * width - Replay.getGlobalBounds().width / 2.f, 0.4f * height + GameOver.getGlobalBounds().height + 5);
 
     //Exit Game button
     Close.setString("EXIT GAME");
     Close.setFont(font);
     Close.setFillColor(sf::Color::White);
-    Close.setCharacterSize(30);
-    Close.setPosition(0.5f * width - Close.getGlobalBounds().width / 2.f, 0.4f * height + Close.getGlobalBounds().height + 5 + Replay_outline.getGlobalBounds().height);
+    Close.setCharacterSize(titleSize * 0.8f);
 
     Close_outline.setFillColor(sf::Color::Black);
     Close_outline.setOutlineColor(sf::Color::White);
     Close_outline.setOutlineThickness(2.0f);
     Close_outline.setSize(sf::Vector2f(Close.getGlobalBounds().width + 20, Close.getGlobalBounds().height + 20));
-    Close_outline.setPosition(0.5f * width - Close.getGlobalBounds().width / 2.f, 0.4f * height + Close.getGlobalBounds().height + 5+Replay_outline.getGlobalBounds().height);
 
     //Gameover
     GameOver.setString("GAME OVER");
     GameOver.setFont(font);
     GameOver.setFillColor(sf::Color::Red);
-    GameOver.setCharacterSize(titleSize);
-    sf::FloatRect gameBounds = GameOver.getGlobalBounds(); 
-    GameOver.setPosition( GameOver.getGlobalBounds().width/2.f - gameBounds.width / 2.0f,0.4f*height);
+    GameOver.setCharacterSize(titleSize+10);
 
     //Score
+    score.setString("SCORE: " + std::to_string(this->finalscore));
+    score.setFont(font);
+    score.setFillColor(sf::Color::Red);
+    score.setCharacterSize(titleSize*0.6f);
     
+
+    //set posiiton
+    // Define margins and spacing
+    const float verticalSpacing = 40.f; // Space between each element
+    const float buttonOutlinePadding = 10.0f; // Padding for button outlines
+
+    // Centering Game Over Text (center of screen)
+    GameOver.setPosition(
+        0.5f * width - GameOver.getGlobalBounds().width / 2.0f,
+        0.4f * height - GameOver.getGlobalBounds().height
+    );
+
+    // Placing the Score below Game Over Text
+    score.setPosition(
+        0.5f * width - score.getGlobalBounds().width / 2.0f,
+        GameOver.getPosition().y + GameOver.getGlobalBounds().height + verticalSpacing
+    );
+
+    // Placing Replay Button below the Score
+    Replay.setPosition(
+        0.5f * width - Replay.getGlobalBounds().width / 2.0f,
+        score.getPosition().y + score.getGlobalBounds().height + verticalSpacing
+    );
+    Replay_outline.setPosition(
+        Replay.getPosition().x - buttonOutlinePadding,
+        Replay.getPosition().y - buttonOutlinePadding
+    );
+
+    // Placing Close Button below Replay Button
+    Close.setPosition(
+        0.5f * width - Close.getGlobalBounds().width / 2.0f,
+        Replay.getPosition().y + Replay.getGlobalBounds().height + verticalSpacing
+    );
+    Close_outline.setPosition(
+        Close.getPosition().x - buttonOutlinePadding,
+        Close.getPosition().y - buttonOutlinePadding
+    );
+
+
 }
 
 
@@ -324,7 +366,7 @@ void UI::set_instructions_objects(int width,int height)
     back_button.setString("BACK");
     back_button.setFont(font);
     back_button.setFillColor(sf::Color::White);
-    back_button.setCharacterSize(30);
+    back_button.setCharacterSize(35);
     back_button.setPosition(0.05 * width, 0.05 * height);
 
     back_button_outline.setFillColor(sf::Color::Black);
@@ -342,13 +384,18 @@ void UI::load_instructions()
     window.draw(back_button);
 }
 
-void UI::set_scores()
+void UI::set_scores(int x)
 {
+   
 }
 
-void UI::load_scores()
+void UI::load_score()
 {
+    this->window.draw(score);
 }
+
+
+
 
 void UI::load_end_page()
 {

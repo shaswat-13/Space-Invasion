@@ -24,6 +24,7 @@ private:
     
 
 public:
+    
     Player();
     virtual ~Player();
 

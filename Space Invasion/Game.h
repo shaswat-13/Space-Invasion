@@ -18,7 +18,9 @@ private:
 		GAME,
 		END,
 		BACK,
-		GAME_OVER
+		GAME_OVER,
+		Replay
+
 	};
 	//window
 	GameState game_state;
@@ -36,6 +38,17 @@ private:
 	std::vector<Bullet*> bullets;
 	std::vector<Star*> stars;
 	std::vector<Bullet*> enemyBullets;
+
+	// starting screen
+	bool isStartingScreenActive;
+	sf::Text startTitle;
+	sf::Text startInstruction;
+	void initStartingScreen();
+
+	//score
+	void loadHighScore();
+	void saveHighScore();
+
 	//Player
 	Player* player;
 	UI* ui;
@@ -98,6 +111,10 @@ public:
 	void updateStars();
 	void updateUI();
 	void update();
+
+	void updateStartingScreen(sf::RenderWindow& window);
+	// New function for handling starting screen updates
+	void renderStartingScreen(); // New function for rendering the starting screen
 
 	void renderUI();
 	void render();

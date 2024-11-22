@@ -21,7 +21,11 @@ void Game::initwindow()
 
 void Game::initPlayer()
 {
+	sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
+
 	this->player = new Player();
+	this->player->setpos(desktopMode.width / 2.f - this->player->getBounds().width, desktopMode.height / 2.f + this->player->getBounds().height - 100.f);
+
 }
 
 void Game::initStars()
@@ -80,6 +84,7 @@ Game::Game()
 	this->initStars();
 	this->initTextures();
 	this->initPlayer();
+	
 	this->initEnemies();
 	this->initSystems();
 	
@@ -199,7 +204,7 @@ void Game::run()
 
 		case GameState::GAME_OVER:
 			if (ui) ui->endgame();
-			if (ui) window->draw(this->ui->back_button);
+			
 			break;
 
 		default:
@@ -287,6 +292,16 @@ void Game::handleGameOverEvents(sf::Event& event) {
 			this->resetgame();
 			game_state = GameState::MENU;
 		}
+		if (this->ui->Replay.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition))) {
+			std::cout << "Back Button Clicked \n";
+			this->resetgame();
+			game_state = GameState::GAME;
+		}
+		if (this->ui->Close.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition))) {
+			std::cout << "Close Button Clicked \n";
+			window->close(); // Close the game window			
+		}
+
 	}
 }
 		
@@ -318,12 +333,24 @@ int Game::getlives()
 	return this->lives;
 }
 void Game::updatelives() {
-	this->lives -= 1;  // Decrease player lives
-	this->player->sethpmax();  // Reset health to max
-	// Move player to the center of the window
-	this->player->setpos(this->window->getSize().x / 2.f, this->window->getSize().y / 2.f);
+	sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
 
+	this->lives -= 1;  // Decrease player lives
+
+	if (this->lives != 0)
+		this->player->sethpmax();  // Reset health to max
+
+	if (this->lives == 0)
+		this->game_state = GameState::GAME_OVER;
+
+	// Calculate bottom center position
+	float posX = desktopMode.width / 2.f - this->player->getBounds().width ; // Center horizontally
+	float posY = desktopMode.height - this->player->getBounds().height - 100.f;    // Position slightly above the bottom
+
+	// Set player's position to the bottom center
+	this->player->setpos(posX, posY);
 }
+
 
 
 
@@ -516,7 +543,9 @@ void Game::updateEnemies() {
 
 	// Spawn the boss at level 5
 	if (this->level == 5 && !bossSpawned) {
-		this->boss.push_back(new Enemy(this->window->getSize().x / 2.f - 70.f, -300.f, this->level, true));
+		Enemy* boss = this->boss.front(); // Assuming only one boss
+
+		this->boss.push_back(new Enemy(this->window->getSize().x / 2.f -boss->getBounds(true).width, -300.f, this->level, true));
 		bossSpawned = true;
 		// Delete all remaining bullets
 		for (size_t i = 0; i < this->enemyBullets.size(); ++i) 
@@ -795,7 +824,7 @@ void Game::render() {
 void Game::resetgame() {
 	window->clear();
 	this->player->resetstats();  // Reset player stats like health
-	this->player->move(this->window->getSize().x / 2.f, this->window->getSize().y/2.f, *window);
+	this->player->setpos(this->window->getSize().x / 2.f-this->player->getBounds().width, this->window->getSize().y -this->player->getBounds().height - 20.f);
 	this->level = 1;
 	this->lives = 3;
 	this->points = 0;

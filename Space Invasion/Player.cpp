@@ -6,7 +6,7 @@ void Player::initVariables()
 	this->movementSpeed = 2.f;
 	this->attackCooldownmax = 10.f;
 	this->attackCooldown = this->attackCooldownmax;
-	this->hpmax = 50;
+	this->hpmax = 1;
 	this->hp = this->hp;
 	this->damage = 10.f;
 
@@ -82,7 +82,7 @@ float Player::give_damage()
 	return this->damage;
 }
 
-void Player::setpos(int height, int width)
+void Player::setpos(int width, int height)
 {
 	this->sprite.setPosition(width,height);
 

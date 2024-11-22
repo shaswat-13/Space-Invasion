@@ -9,7 +9,7 @@ public:    //Gamestate
    
     sf::RenderWindow& window;
     sf::Clock clock;
-    
+    int finalscore;
 
     //for game window
     sf::Text title;
@@ -44,9 +44,8 @@ public:    //Gamestate
     void load_instructions();
 
     
-    void set_scores();
-    void load_scores();
-
+    void set_scores(int x);
+    void load_score();
     void load_end_page();
     void load_game();
 
