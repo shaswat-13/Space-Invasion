@@ -6,7 +6,7 @@ void Player::initVariables()
 	this->movementSpeed = 2.f;
 	this->attackCooldownmax = 10.f;
 	this->attackCooldown = this->attackCooldownmax;
-	this->hpmax = 1;
+	this->hpmax = 500;
 	this->hp = this->hp;
 	this->damage = 10.f;
 
@@ -66,7 +66,7 @@ const float& Player::getHpMax() const
 
 void Player::sethpmax()
 {
-	this->hp = this->hpmax;
+	this->hp = 500;
 }
 
 void Player::losehp(int damage)
@@ -153,6 +153,7 @@ void Player::update(int x)
 {
 	this->movementSpeed = std::min(5.f, 2.f + 0.5f * x);
 	this->damage = std::min((float)x * 10.0f, 500.0f);  // For example, cap damage at 500
+	this->hpmax = 500 + 50 * x;
 
 }
 

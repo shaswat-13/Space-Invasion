@@ -23,6 +23,8 @@ private:
     sf::Texture bossText;
     float shootCooldownMax;  // Max cooldown for shooting
     float shootCooldown;     // Current cooldown timer
+    float shootDuration;      // Duration for which the boss can shoot (e.g., 1 second)
+    bool isShooting;          // Indicates if the boss is currently shooting
 
     void initShape(bool isBoss);
     void initVariables(bool isBoss);
@@ -42,8 +44,13 @@ public:
     void takeDamage(float damage);
     bool isDead() const;
 
+    bool isDestroyed();
+
     void updateattack(int x);
+    void updateBossAttack();
     const bool canShoot();
+    const bool bosscanShoot();
+
     const int& getPoints() const;
     const float& getDamage() const;
     float gethp();

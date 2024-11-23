@@ -34,6 +34,7 @@ void Enemy::initVariables(bool isBoss)
         // Slower for boss
         this->hp = this->hpMax;
         this->damage = 10.f; // Boss damage
+        this->points = 50;
     
     }
     else {
@@ -42,6 +43,14 @@ void Enemy::initVariables(bool isBoss)
         this->damage = 2;
         this->points = 5;
     }
+}
+
+bool Enemy::isDestroyed()
+{
+    if (this->hp == 0)
+        return true;
+    else
+        return false;
 }
 
 // Load the texture and handle potential errors
@@ -103,6 +112,7 @@ const bool Enemy::canShoot()
     return false; // prevent attack if cooldown is not finished
 }
 
+
 void Enemy::updateattack(int x)
 {
     // Calculate the max cooldown based on the level (x), using an exponential decay for gradual reduction
@@ -124,7 +134,29 @@ void Enemy::updateattack(int x)
     }
 }
 
+const bool Enemy::bosscanShoot()
+{
+    // Boss shoots continuously, but checks if the cooldown is finished before firing
+    if (this->shootCooldown >= this->shootCooldownMax) {
+        this->shootCooldown = 0.f;  // Reset the cooldown
+        return true;                 // Allow the boss to shoot
+    }
 
+    return false; // Boss cannot shoot yet
+}
+
+void Enemy::updateBossAttack()
+{
+    // Set cooldown between shots to 0.1 seconds
+    this->shootCooldownMax = 0.1f;
+
+    // Gradually increase the cooldown (to allow next shot)
+    if (this->shootCooldown < this->shootCooldownMax) {
+        this->shootCooldown += 0.016f; // Increment cooldown per frame (~1 frame at 60 FPS)
+    }
+
+    // The boss can keep shooting continuously once the cooldown resets
+}
 
 void Enemy::update(float level) {
     this->speed=std::min(8.f,0.7f*level);
@@ -163,9 +195,10 @@ const sf::Vector2f Enemy::getCenter() const
 // Function to validate and adjust the enemy's initial position if necessary
 void Enemy::validatePosition(float& posx, float& posy)
 {
+    sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
     // Define the screen bounds
-    const float screenWidth = 800.0f;
-    const float screenHeight = 600.0f;
+    const float screenWidth = desktopMode.width;
+    const float screenHeight = desktopMode.height;
 
     // Adjust position if it's outside the screen bounds
     if (posx < 0.0f) posx = 0.0f;

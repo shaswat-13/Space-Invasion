@@ -7,6 +7,9 @@
 #include "Enemy.h"
 #include "Star.h"
 #include "UI.h"
+#include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
+
 
 class Game
 {
@@ -17,42 +20,58 @@ private:
         SCORES,
         INSTRUCTIONS,
         GAME,
+        Pause,
         Name_Input,
         END,
         BACK,
         GAME_OVER,
-        Replay
+        Replay,
+        Credits
     };
 
     // Window
     GameState game_state;
-    int level = 5;
-    int lives = 3;
+    GameState prev_state;
+    int level = 1;
+    int lives = 4;
+    int maxEnemies; // Dynamic maximum number of enemies
+
     sf::RenderWindow* window;
     bool isPulsating;
 
-    // Resources
+    // Resources//sound
+    sf::SoundBuffer killSoundBuffer;
+    sf::Sound killSound;
+    sf::SoundBuffer pausesoundbuffer;
+    sf::Sound pausesound;
+
     sf::Clock clock;
     sf::Clock eventclock;
     sf::Font font2;
     sf::Text frameRateText;
+
+    int bossSpawnedCount;
+
     std::map<std::string, sf::Texture*> textures;
     std::vector<Bullet*> bullets;
     std::vector<Star*> stars;
     std::vector<Bullet*> enemyBullets;
+    std::vector<Bullet*> bossbullets;
+    std::vector<UI*>bosshp;
 
     // Starting Screen
     bool isStartingScreenActive;
     sf::Text startTitle;
     sf::Text startInstruction;
-    void initStartingScreen();
 
     // Score
     int highscore;
     sf::Text highScoreText;
-    std::string playerName;  // Store player's name
-    void loadHighScore();
+    sf::Text scores;
+    sf::String playerName;  // Store player's name
     void saveScore();  // Save score with name
+    bool scoreSaved = false;
+
 
     // Player
     Player* player;
@@ -62,7 +81,7 @@ private:
     void handleMenuEvents(sf::Event& event);
     void handleInstructionsEvents(sf::Event& event);
     void handleGameEvents(sf::Event& event);
-    void handleEndEvents(sf::Event& event);
+    void handlePauseevents(sf::Event& event);
     void handleGameOverEvents(sf::Event& event);
     void handlescoreevents(sf::Event& event);
 
@@ -86,6 +105,7 @@ private:
     void initSystems();
     void initEnemies();
     void initUI();
+    std::vector<float> occupiedPositions; // Track occupied X positions
 
     void updateEnemyBullets();
 
@@ -112,8 +132,6 @@ public:
     void updateUI();
     void update();
 
-    void updateStartingScreen(sf::RenderWindow& window);
-    void renderStartingScreen();  // New function for rendering the starting screen
     void displayHighScore();  // Display high score with player name
 
     void renderUI();

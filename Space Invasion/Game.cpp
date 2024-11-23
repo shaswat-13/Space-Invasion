@@ -3,6 +3,8 @@
 #include <cmath> // For atan2 and other math functions
 #include "font2.h"
 #include<fstream>
+#include<filesystem>
+#include<iostream>
 // Initialization functions...
 
 
@@ -77,6 +79,7 @@ Game::Game()
 		std::cout << "Error: Font not loaded\n";
 	}
 
+
 	this->updatePollEvents();
 	this->initwindow();
 	this->initUI();
@@ -87,6 +90,19 @@ Game::Game()
 	
 	this->initEnemies();
 	this->initSystems();
+
+	if (!this->killSoundBuffer.loadFromFile("Sound/kill.mp3")) {
+		// Handle error loading sound
+		std::cout << "Error loading kill sound!" << std::endl;
+	}
+	if (!this->pausesoundbuffer.loadFromFile("Sound/pause.mp3")) {
+		// Handle error loading sound
+		std::cout << "Error loading pause sound!" << std::endl;
+	}
+	this->killSound.setBuffer(this->killSoundBuffer);
+	this->killSound.setVolume(50.f);
+	this->pausesound.setBuffer(this->pausesoundbuffer);
+	this->pausesound.setVolume(50.f);
 }
 
 Game::~Game()
@@ -149,16 +165,21 @@ void Game::run()
 			case GameState::GAME:
 				handleGameEvents(event);
 				break;
+			case GameState::Name_Input:
+				this->getPlayerNameInput();
+				break;
 
-			case GameState::END:
-				handleEndEvents(event);
+			case GameState::Pause:
+				handlePauseevents(event);
 				break;
 
 			case GameState::GAME_OVER:
 				handleGameOverEvents(event);
 				break;
+
 			case GameState::SCORES:
 				handlescoreevents(event);
+				break;
 
 			default:
 				std::cerr << "Unknown game_state: " << static_cast<int>(game_state) << std::endl;
@@ -187,33 +208,54 @@ void Game::run()
 		switch (game_state)
 		{
 		case GameState::MENU:
-			if (ui) ui->load_menu();
+			if (ui)
+			{
+				ui->load_menu();
+				ui->update();
+			}
+			break;
+
+		case GameState::Credits:
+			if (ui) ui->load_credits();
+			ui->update();
 			break;
 
 		case GameState::INSTRUCTIONS:
 			if (ui) ui->load_instructions();
+			this->ui->update();
 			break;
 
 		case GameState::GAME:
-			this->update();
+			std::cerr << this->getlives();
+
 			this->render();
+
+			this->update();
+
+			std::cerr << this->getlives();
 			break;
 
-		case GameState::Name_Input:
-			getPlayerNameInput();  // Get player name
-			if (!playerName.empty()) {  // If a name is entered, start the game
-				game_state = GameState::GAME;
-			}
-
-		case GameState::END:
-			if (ui) ui->endgame();
-			break;
+		case GameState::Pause:
+				this->ui->pause_page();
+				this->ui->update();
+				break;
 
 		case GameState::GAME_OVER:
+			this->saveScore();
 			if (ui) ui->endgame();
+			this->ui->update();
+			break;
 
 		case GameState::SCORES:
-			displayHighScore ();
+			this->displayHighScore();
+			if (ui) 
+			{
+			
+				this->window->draw(this->ui->back_button_outline);
+				this->window->draw(this->ui->back_button);
+				this->ui->update();
+			}
+				
 			break;
 
 		default:
@@ -228,6 +270,7 @@ void Game::run()
 
 void Game::handleMenuEvents(sf::Event& event)
 {
+	this->resetgame();
 	if (this->game_state != GameState::MENU) {
 		this->ui->update(); // Refresh UI elements
 		this->ui->load_menu();
@@ -235,22 +278,51 @@ void Game::handleMenuEvents(sf::Event& event)
 	if (event.type == sf::Event::MouseButtonPressed)
 	{
 		sf::Vector2i mousePosition = sf::Mouse::getPosition(*window);
-
+	
 		if (this->ui->play_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
 		{
-			std::cout << "Play Button Clicked \n";
-			this->resetgame(); // Reset game state and variables
-			game_state = GameState::GAME;
+			this->ui->playClickSound();
+
+			
+
+				if (playerName.isEmpty())  // Only ask for name if it's not set
+				{
+					game_state = GameState::Name_Input;
+				}
+				else
+				{
+					game_state = GameState::GAME;
+				}
+
+			
 		}
 		else if (this->ui->instructions_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
 		{
+			this->ui->playClickSound();
 			std::cout << "Instructions Button Clicked \n";
+			prev_state = GameState::MENU;
+
 			game_state = GameState::INSTRUCTIONS;
 		}
 		else if (this->ui->scores_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
 		{
+			this->ui->playClickSound();
+
 			std::cout << "Scores Button Clicked \n";
 			game_state = GameState::SCORES;
+		}
+		else if (this->ui->credits_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+		{
+			this->ui->playClickSound();
+
+			std::cout << "Credits Button Clicked \n";
+			game_state = GameState::Credits;
+		}
+		else if (this->ui->Close_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+		{
+			this->ui->playClickSound();
+
+			window->close();
 		}
 	}
 }
@@ -263,8 +335,16 @@ void Game::handleInstructionsEvents(sf::Event& event)
 
 		if (this->ui->back_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
 		{
-			std::cout << "Back Button Pressed \n";
-			game_state = GameState::MENU;
+			this->ui->playClickSound();
+			if (prev_state == GameState::MENU)
+			{
+				std::cout << "Back Button Pressed \n";
+				game_state = GameState::MENU;
+			}
+			else if (prev_state == GameState::Pause)
+			{
+				game_state = GameState::Pause;
+			}
 		}
 	}
 }
@@ -273,43 +353,95 @@ void Game::handleGameEvents(sf::Event& event)
 {
 	if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
 	{
+		pausesound.play();
 		std::cout << "Pause / Exit Pressed \n";
 		
-		game_state = GameState::Name_Input;
+		game_state = GameState::Pause;
 
 	}
 }
 
-void Game::handleEndEvents(sf::Event& event)
+void Game::handlePauseevents(sf::Event& event)
 {
+	if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
+	{
+		this->pausesound.play();
+		std::cout << "Pause / Exit Pressed \n";
+
+		game_state = GameState::GAME;
+
+	}
 	if (event.type == sf::Event::MouseButtonPressed)
 	{
 		sf::Vector2i mousePosition = sf::Mouse::getPosition(*window);
 
-		if (this->ui->back_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+		if (this->ui->back_button.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
 		{
-			std::cout << "Back to Menu \n";
-			this->resetgame();
+			this->ui->playClickSound();
+			std::cout << "Back Button Pressed \n";
+			game_state = GameState::GAME;
+		}
+
+		else if (this->ui->resume.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+		{
+			this->ui->playClickSound();
+			std::cout << "Back Button Pressed \n";
+
 			game_state = GameState::MENU;
 		}
+		else if (this->ui->Restart.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+		{
+			this->ui->playClickSound();
+			std::cout << "Restart Button Pressed \n";
+			resetgame();
+			game_state = GameState::GAME;
+		}
+
+		else if (this->ui->Instructions.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+		{
+			this->ui->playClickSound();
+
+			prev_state = GameState::Pause;
+			game_state = GameState::INSTRUCTIONS;
+		}
+		else if (this->ui->exit.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
+			{
+			this->ui->playClickSound();
+
+				std::cout << "exit Button Pressed \n";
+				window->close();
+
+			}
+
 	}
 }
+
+
+
+
+
 void Game::handleGameOverEvents(sf::Event& event) {
 	if (event.type == sf::Event::MouseButtonPressed) {
 		sf::Vector2i mousePosition = sf::Mouse::getPosition(*window);
 
 		if (this->ui->back_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition))) {
 			std::cout << "Back Button Clicked \n";
+			this->ui->playClickSound();
+
 			this->resetgame();
 			game_state = GameState::MENU;
 		}
 		if (this->ui->Replay.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition))) {
 			std::cout << "Back Button Clicked \n";
+			this->ui->playClickSound();
+
 			this->resetgame();
 			game_state = GameState::GAME;
 		}
 		if (this->ui->Close.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition))) {
 			std::cout << "Close Button Clicked \n";
+			this->ui->playClickSound();
+
 			window->close(); // Close the game window			
 		}
 
@@ -325,6 +457,8 @@ void Game::handlescoreevents(sf::Event& event)
 		if (this->ui->back_button_outline.getGlobalBounds().contains(static_cast<sf::Vector2f>(mousePosition)))
 		{
 			std::cout << "Back Button Pressed \n";
+			this->ui->playClickSound();
+
 			game_state = GameState::MENU;
 		}
 	}
@@ -364,7 +498,7 @@ void Game::updatelives() {
 	this->lives -= 1;  // Decrease player lives
 
 	if (this->lives != 0)
-		this->player->sethpmax();  // Reset health to max
+		this->player->resetstats();  // Reset health to max
 
 	if (this->lives == 0)
 		this->game_state = GameState::GAME_OVER;
@@ -389,15 +523,12 @@ void Game::updatePollEvents()
 		{
 			this->window->close();
 		}
-		else if (e.type == sf::Event::KeyPressed)
+		else if (e.type == sf::Event::KeyPressed && e.key.code == sf::Keyboard::F11)
 		{
 			std::cout << "Key pressed: " << e.key.code << std::endl;
-
-			if (e.key.code == sf::Keyboard::F)
-			{
 			std::cout << "F key pressed, toggling fullscreen.\n";
 			handleResize();
-		    }
+		
 		}
 		else if (e.type == sf::Event::Resized)
 		{
@@ -489,7 +620,7 @@ void Game::updateInput()
 	// Player shooting
 	if ((sf::Mouse::isButtonPressed(sf::Mouse::Left) || sf::Keyboard::isKeyPressed(sf::Keyboard::Space)) && this->player->canAttack())
 	{
-		this->bullets.push_back(new Bullet(this->textures["BULLET"], this->player->getPos().x + 30, this->player->getPos().y, 0.f, -1.f, 3.f*level, 2*level,this->level));
+		this->bullets.push_back(new Bullet(this->textures["BULLET"], this->player->getPos().x+this->player->getBounds().width/2.5f+5, this->player->getPos().y, 0.f, -1.f, 3.f * level, 2 * level, this->level));
 		
 	}
 	this->player->update(this->level);
@@ -497,19 +628,21 @@ void Game::updateInput()
 }
 
 
+// Member variable to keep track of occupied positions
+std::vector<float> occupiedPositions;
 void Game::updateEnemies() {
 	// Adjust spawn rate based on level
-	this->spawnTimer += 0.2f * this->level;
-	this->spawnTimermax = std::max(20.f, 50.f - (level * 2.f));
+	this->spawnTimer += 0.5f * this->level;
+	this->spawnTimermax = std::max(2.f, 50.f - (level * 2.f));
 
-	if (level < 5) {
-		// Spawn regular enemies
+	// Regular enemy spawning logic (only for levels below 5)
+	if (this->level < 5) {
 		if (this->spawnTimer >= this->spawnTimermax) {
 			float playerX = this->player->getPos().x;
 			float randomX;
 			bool validPosition = false;
 			int attempts = 0;               // Track attempts to find a valid spawn position
-			const int maxAttempts = 100;    // Max attempts to avoid infinite loop
+			const int maxAttempts = 200;    // Increased attempts to ensure spawn success
 
 			sf::Vector2u windowSize = this->window->getSize(); // Get current window size
 
@@ -520,9 +653,9 @@ void Game::updateEnemies() {
 
 				validPosition = true;
 
-				// Ensure minimum distance from other enemies
-				for (const auto& enemy : this->enemies) {
-					if (std::abs(enemy->getPos(false).x - randomX) < 50.f) {
+				// Ensure minimum distance from other enemies and no overlap with existing positions
+				for (float occupiedX : occupiedPositions) {
+					if (std::abs(occupiedX - randomX) < 30.f) { // Reduced minimum distance
 						validPosition = false;
 						break;
 					}
@@ -534,189 +667,281 @@ void Game::updateEnemies() {
 			if (validPosition) {
 				// Spawn the enemy at a valid position
 				this->enemies.push_back(new Enemy(randomX, -50.f, this->level, false));
-				this->spawnTimer = 0.f;
+				occupiedPositions.push_back(randomX); // Add the new spawn position to the occupied list
+				this->spawnTimer = 0.f; // Reset spawn timer
+				std::cout << "Enemy spawned at: " << randomX << std::endl;
 			}
-		}
-
-		// Update enemies and check for removal
-		for (size_t i = 0; i < this->enemies.size(); ++i) {
-			this->enemies[i]->update(this->level);
-			this->enemies[i]->updateattack(this->getlevel());
-
-			// Remove enemy if out of bounds
-			if (this->enemies[i]->getBounds(false).top > this->window->getSize().y) {
-				delete this->enemies[i];
-				this->enemies.erase(this->enemies.begin() + i);
-				--i;
-				continue;
-			}
-
-			// Handle enemy shooting
-			if (this->enemies[i]->canShoot()) {
-				this->enemyBullets.push_back(new Bullet(
-					this->textures["BULLET"],
-					this->enemies[i]->getPos(false).x + 20,
-					this->enemies[i]->getBounds(false).top + this->enemies[i]->getBounds(false).height,
-					0.f, 1.f, 3.f * level, 2 * level, this->level
-				)); // Downward bullet
+			else {
+				std::cout << "Failed to spawn enemy after " << maxAttempts << " attempts.\n";
 			}
 		}
 	}
+	float centerX = static_cast<float>(this->window->getSize().x) / 2;
 
-	// Spawn the boss at level 5
-	if(this->level == 5 && !bossSpawned) {
-		// Add the new boss first
-		this->boss.push_back(new Enemy(
-			this->window->getSize().x / 2.f - 100.f,  // Adjust positioning as needed
-			-300.f, this->level, true));
+	// Boss spawning logic (only for levels 5 and above)
+	if (this->level >= 5 && this->boss.empty()) {
+		int bossesToSpawn = this->level - 4;
 
-		// Access the newly added boss
-		Enemy* boss = this->boss.back();
-
-		bossSpawned = true;
-
-		// Delete all remaining bullets
-		for (size_t i = 0; i < this->enemyBullets.size(); ++i) {
-			delete this->enemyBullets[i];
+		// Adjust for multiple bosses, spacing them evenly around the center
+		for (int i = 0; i < bossesToSpawn; ++i) {
+			// Calculate offset for each boss based on the number of bosses to spawn
+			float offset = (i - (bossesToSpawn - 1) / 2.f) * 150.f; // Spacing of 150 units between bosses
+			float spawnX = centerX + offset;
+			this->boss.push_back(new Enemy(spawnX, -200.f, this->level, true));
 		}
-		this->enemyBullets.clear();
+		bossSpawnedCount = bossesToSpawn;
 	}
 
+	// Update regular enemies
+	for (size_t i = 0; i < this->enemies.size(); ++i) {
+		this->enemies[i]->update(this->level);
+		this->enemies[i]->updateattack(this->getlevel());
 
-	// Update the boss if present
-	if (!this->boss.empty()) {
-		Enemy* boss = this->boss.front();  // Safely access the first boss
+		// Remove enemy if out of bounds
+		if (this->enemies[i]->getBounds(false).top > this->window->getSize().y) {
+			// Remove the corresponding position from occupiedPositions
+			occupiedPositions.erase(
+				std::remove(occupiedPositions.begin(), occupiedPositions.end(), this->enemies[i]->getPos(false).x),
+				occupiedPositions.end()
+			);
+
+			delete this->enemies[i];
+			this->enemies.erase(this->enemies.begin() + i);
+			--i;
+			continue;
+		}
+
+		// Handle enemy shooting
+		if (this->enemies[i]->canShoot()) {
+			this->enemyBullets.push_back(new Bullet(
+				this->textures["BULLET"],
+				this->enemies[i]->getPos(false).x + 20,
+				this->enemies[i]->getBounds(false).top + this->enemies[i]->getBounds(false).height,
+				0.f, 1.f, 3.f * level, 2 * level, this->level
+			)); // Downward bullet
+		}
+	}
+
+	// Update bosses
+	for (size_t i = 0; i < this->boss.size(); ++i) {
+		Enemy* boss = this->boss[i];
 		float targetHeight = 20.f;
 
 		if (boss->getPos(true).y < targetHeight) {
-			boss->update(true);  // Update only if the boss is above the target height
+			boss->update(true);
 		}
-	}
+			// Boss shooting logic
+			boss->updateBossAttack();
+			if (boss->bosscanShoot()) {
+				float shooterOffsetX = 20.f; // Adjust as needed
+				float shooterY = boss->getPos(true).y + boss->getBounds(true).height;
 
-}
+				// Shooter positions (left and right of the boss)
+				float leftShooterX = boss->getPos(true).x + shooterOffsetX;
+				float rightShooterX = boss->getPos(true).x + boss->getBounds(true).width - shooterOffsetX;
 
-
-void Game::updateEnemyBullets()
-{
-	if (this->level < 5)
-	{
-		for (size_t i = 0; i < this->enemyBullets.size(); ++i) {
-			this->enemyBullets[i]->update();
-
-			// Check collision with player
-			if (this->enemyBullets[i]->getBounds().intersects(this->player->getBounds())) {
-				this->player->losehp(enemyBullets[i]->getdamage());
-
-				delete this->enemyBullets[i];
-				this->enemyBullets.erase(this->enemyBullets.begin() + i);
-				--i;
-				continue;
+				this->bossbullets.push_back(new Bullet(
+					this->textures["BULLET"],
+					leftShooterX,
+					shooterY,
+					0.f, 4.f, 5.f, 20.f, this->level // Adjust velocity/damage as needed
+				));
+				this->bossbullets.push_back(new Bullet(
+					this->textures["BULLET"],
+					rightShooterX,
+					shooterY,
+					0.f, 4.f, 5.f, 20.f, this->level // Adjust velocity/damage as needed
+				));
 			}
 
-			// Check collision with player bullets
-			for (size_t j = 0; j < this->bullets.size(); ++j) {
-				if (this->enemyBullets[i]->getBounds().intersects(this->bullets[j]->getBounds())) {
-					delete this->enemyBullets[i];
-					delete this->bullets[j];
-					this->enemyBullets.erase(this->enemyBullets.begin() + i);
-					this->bullets.erase(this->bullets.begin() + j);
-					--i;
-					break;
+			// Check if the boss is destroyed
+			if (boss->isDestroyed()) {
+				delete boss;
+				this->boss.erase(this->boss.begin() + i);
+				--i;
+
+				// Spawn additional bosses
+				if (this->boss.empty() && bossSpawnedCount < this->level - 4) {
+					bossSpawnedCount++;
+					for (int j = 0; j < bossSpawnedCount; ++j) {
+						// Recalculate the spawn positions for additional bosses
+						float offset = (j - (bossSpawnedCount - 1) / 2.f) * 150.f;
+						float spawnX = centerX + offset;
+						this->boss.push_back(new Enemy(spawnX, -200.f, this->level, true));
+					}
+
+					// Clear bullets when new wave of bosses spawn
+					for (size_t j = 0; j < this->enemyBullets.size(); ++j) {
+						delete this->enemyBullets[j];
+					}
+					this->enemyBullets.clear();
 				}
 			}
-
-			// Remove if off-screen
-			if (i < this->enemyBullets.size() && this->enemyBullets[i]->getBounds().top > this->window->getSize().y) {
-				delete this->enemyBullets[i];
-				this->enemyBullets.erase(this->enemyBullets.begin() + i);
-				--i;
-			}
-		}
-	}
-	else
-	{
-
-
-	}
-
-}
-void Game::updateEnemiesCombat()
-{
-	// Iterate over enemies
-	for (size_t i = 0; i < this->enemies.size();)
-	{
-		bool enemy_removed = false;
-
-		// Check collision with bullets for enemies
-		for (size_t k = 0; k < this->bullets.size() && !enemy_removed; ++k)
-		{
-			if (this->bullets[k]->getBounds().intersects(this->enemies[i]->getBounds(false)))
-			{
-				std::cout << "Collision detected!" << std::endl;
-
-				this->points += this->enemies[i]->getPoints();
-				delete this->bullets[k];
-				this->bullets.erase(this->bullets.begin() + k);
-				delete this->enemies[i];
-				this->enemies.erase(this->enemies.begin() + i);
-				enemy_removed = true;
-				break; // Exit inner loop
-			}
-		}
-
-		// Check collision with player if enemy is still present
-		if (!enemy_removed && this->enemies[i]->getBounds(false).intersects(this->player->getBounds()))
-		{
-			this->player->losehp(this->enemies[i]->getDamage());
-			delete this->enemies[i];
-			this->enemies.erase(this->enemies.begin() + i);
-			enemy_removed = true;
-		}
-
-		// If the enemy was not removed, continue with the next one
-		if (!enemy_removed) {
-			++i;
 		}
 	}
 
-	// Iterate over bosses
-	for (size_t j = 0; j < this->boss.size();)
-	{
-		bool boss_removed = false;
-		Enemy* boss = this->boss[j]; // Get the current boss
 
-		// Check collision with bullets for boss
-		for (size_t k = 0; k < this->bullets.size() && !boss_removed; ++k)
-		{
-			if (this->bullets[k]->getBounds().intersects(boss->getBounds(true)))
-			{
-				delete this->bullets[k];
-				this->bullets.erase(this->bullets.begin() + k);
-				boss->takeDamage(this->player->give_damage());
-				std::cout <<"damage" << this->player->give_damage();
+
+void Game::updateEnemyBullets() {
+	// Update all enemy bullets
+	for (size_t i = 0; i < this->enemyBullets.size(); ++i) {
+		this->enemyBullets[i]->update();
+
+		// Check collision with player
+		if (this->enemyBullets[i]->getBounds().intersects(this->player->getBounds())) {
+			this->player->losehp(this->enemyBullets[i]->getdamage());
+			if (this->player->getHp() <= 0) {
+				this->killSound.play(); // Play kill sound if the player dies
 			}
+			delete this->enemyBullets[i];
+			this->enemyBullets.erase(this->enemyBullets.begin() + i);
+			--i;
+			continue;
 		}
 
-		// Check collision with player if boss is still present
-		if (!boss_removed && boss->getBounds(true).intersects(this->player->getBounds()))
-		{
-			this->player->losehp(boss->getDamage());
+		// Remove if off-screen
+		if (this->enemyBullets[i]->getBounds().top > this->window->getSize().y) {
+			delete this->enemyBullets[i];
+			this->enemyBullets.erase(this->enemyBullets.begin() + i);
+			--i;
+		}
+	}
+
+	// Update all boss bullets
+	for (size_t i = 0; i < this->bossbullets.size(); ++i) {
+		this->bossbullets[i]->update();
+
+		// Check collision with player
+		if (this->bossbullets[i]->getBounds().intersects(this->player->getBounds())) {
+			this->player->losehp(this->bossbullets[i]->getdamage());
+			delete this->bossbullets[i];
+			this->bossbullets.erase(this->bossbullets.begin() + i);
+			--i;
+			continue;
 		}
 
-		// If boss is defeated
-		if (boss->gethp() == 0)
-		{
-			this->boss.erase(this->boss.begin() + j);
-			delete boss;
-			boss_removed = true;
-		}
-
-		// If the boss was not removed, continue with the next one
-		if (!boss_removed) {
-			++j;
+		// Remove if off-screen
+		if (this->bossbullets[i]->getBounds().top > this->window->getSize().y) {
+			delete this->bossbullets[i];
+			this->bossbullets.erase(this->bossbullets.begin() + i);
+			--i;
 		}
 	}
 }
+void Game::updateEnemiesCombat() {
+    // Handle regular enemies (only for levels below 5)
+    if (this->level < 5) {
+        for (size_t i = 0; i < this->enemies.size();) {
+            bool enemy_removed = false;
+
+            // Check collision with player bullets
+            for (size_t k = 0; k < this->bullets.size() && !enemy_removed; ++k) {
+                if (this->bullets[k]->getBounds().intersects(this->enemies[i]->getBounds(false))) {
+                    // Player's bullet hits the enemy, gain points
+                    this->points += this->enemies[i]->getPoints();
+                    this->killSound.play();
+
+                    // Delete the bullet and the enemy
+                    delete this->bullets[k];
+                    this->bullets.erase(this->bullets.begin() + k);
+
+                    delete this->enemies[i];
+                    this->enemies.erase(this->enemies.begin() + i);
+
+                    enemy_removed = true;
+                    break;
+                }
+            }
+
+            // Check collision with player
+            if (!enemy_removed && this->enemies[i]->getBounds(false).intersects(this->player->getBounds())) {
+                // Player collides with enemy, player loses health
+                this->player->losehp(this->enemies[i]->getDamage());
+                this->killSound.play();
+
+                // Remove the enemy
+                delete this->enemies[i];
+                this->enemies.erase(this->enemies.begin() + i);
+                enemy_removed = true;
+            }
+
+            if (!enemy_removed) {
+                ++i;
+            }
+        }
+    }
+
+    // Handle all bosses (only for levels 5 and above)
+    if (this->level >= 5) {
+        for (size_t j = 0; j < this->boss.size();) {
+            Enemy* boss = this->boss[j];
+
+            // Check collision with player bullets
+            for (size_t k = 0; k < this->bullets.size(); ++k) {
+                if (this->bullets[k]->getBounds().intersects(boss->getBounds(true))) {
+                    // Bullet hits the boss, apply damage to the boss
+                    boss->takeDamage(this->player->give_damage());
+                    delete this->bullets[k];
+                    this->bullets.erase(this->bullets.begin() + k);
+                    break;
+                }
+            }
+
+            // Check collision with the player
+            if (boss->getBounds(true).intersects(this->player->getBounds())) {
+                // Player collides with boss, player loses health
+                this->player->losehp(boss->getDamage());
+            }
+
+            // Remove boss if defeated
+            if (boss->gethp() <= 0) {
+                this->points += boss->getPoints();
+                this->killSound.play();
+
+                delete boss;
+                this->boss.erase(this->boss.begin() + j);
+
+                // Increment boss wave count
+                this->bossSpawnedCount++;
+            }
+            else {
+                ++j;
+            }
+        }
+    }
+
+    // Check for collision between bullets and enemy/boss bullets
+    for (size_t i = 0; i < this->bullets.size(); ++i) {
+        for (size_t j = 0; j < this->enemyBullets.size(); ++j) {
+            if (this->bullets[i]->getBounds().intersects(this->enemyBullets[j]->getBounds())) {
+                // Bullet from the player hits enemy bullet
+                delete this->bullets[i];
+                this->bullets.erase(this->bullets.begin() + i);
+                delete this->enemyBullets[j];
+                this->enemyBullets.erase(this->enemyBullets.begin() + j);
+
+                // Adjust indices after erasing
+                i--; // Ensure the next bullet checks correctly
+                break; // No need to check more collisions for the current bullet
+            }
+        }
+
+        for (size_t j = 0; j < this->bossbullets.size(); ++j) {
+            if (this->bullets[i]->getBounds().intersects(this->bossbullets[j]->getBounds())) {
+                // Bullet from the player hits boss bullet
+                delete this->bullets[i];
+                this->bullets.erase(this->bullets.begin() + i);
+                delete this->bossbullets[j];
+                this->bossbullets.erase(this->bossbullets.begin() + j);
+
+                // Adjust indices after erasing
+                i--; // Ensure the next bullet checks correctly
+                break; // No need to check more collisions for the current bullet
+            }
+        }
+    }
+}
+
 
 
 void Game::updateBullets()
@@ -758,10 +983,11 @@ void Game::updateUI() {
 	}
 	
 	//updatehearts
-	if (this->player->getHp() == 0) 
-	{
+	// Update hearts only during gameplay
+	if (game_state == GameState::GAME && this->player->getHp() == 0) {
 		this->updatelives();
 	}
+
 	float playerHealthPercent = (this->player->getHp() / this->player->getHpMax());
 
 	this->ui->updateHearts(this->getlives(),playerHealthPercent);
@@ -795,54 +1021,92 @@ void Game::updateUI() {
 }
 
 void Game::saveScore() {
-	std::ofstream file("Fonts/highscores.txt", std::ios::app);
+	if (scoreSaved) return;  // Prevent saving multiple times
+	scoreSaved = true;
+
+	std::filesystem::path exePath = std::filesystem::current_path();
+	std::filesystem::path scoreFilePath = exePath / "highscores.txt";  // Append the filename
+
+	std::ofstream file(scoreFilePath, std::ios::app);
 	if (file.is_open()) {
-		file << this->playerName << ": " << this->getpoints() << "\n";  // Save name and score
+		file << this->playerName.toAnsiString() << ": " << this->getpoints() << "\n";  // Save name and score
 		file.close();
 	}
 }
 
 void Game::displayHighScore() {
-	std::ifstream file("Fonts/highscores.txt");
-	std::vector<std::pair<std::string, int>> scores;
-	std::string name;
-	int score;
+	// Determine the file path relative to the executable
+	std::filesystem::path exePath = std::filesystem::current_path();
+	std::filesystem::path scoreFilePath = exePath / "highscores.txt";
 
+	std::ifstream file(scoreFilePath);
+	std::vector<std::pair<std::string, int>> scores;
+
+	std::string line;
 	// Read scores from the file
 	if (file.is_open()) {
-		while (file >> name >> score) {
-			scores.push_back({ name, score });
+		while (std::getline(file, line)) {
+			size_t delimiterPos = line.find(": ");
+			if (delimiterPos != std::string::npos) {
+				std::string name = line.substr(0, delimiterPos);
+				int score = std::stoi(line.substr(delimiterPos + 2));
+				scores.push_back({ name, score });
+			}
 		}
 		file.close();
 	}
 
 	// Sort scores in descending order
-	std::sort(scores.rbegin(), scores.rend(), [](const auto& a, const auto& b) {
-		return a.second < b.second;  // Sort by score
+	std::sort(scores.begin(), scores.end(), [](const auto& a, const auto& b) {
+		return a.second > b.second;  // Sort by score (highest first)
 		});
 
-	// Display top 3 scores
-	std::string topScoresText;
-	for (size_t i = 0; i < std::min<size_t>(3, scores.size()); ++i) {
-		topScoresText += scores[i].first + ": " + std::to_string(scores[i].second) + "\n";
+	// Display top 3 scores or a default message if no scores exist
+	std::string topScoresText = "High Scores:\n";
+	std::string score;
+	if (scores.empty()) {
+		topScoresText = "No high scores yet!";
+	}
+	else {
+		for (size_t i = 0; i < std::min<size_t>(3, scores.size()); ++i) {
+			score += "->"+scores[i].first + ": " + std::to_string(scores[i].second) + "\n";
+		}
 	}
 
+	// Update and draw the high scores text
 	this->highScoreText.setString(topScoresText);
+	this->highScoreText.setFont(this->font2);  // Ensure font is set
+	this->highScoreText.setCharacterSize(60);
+	this->highScoreText.setFillColor(sf::Color::Red);
+	this->highScoreText.setPosition(this->window->getSize().x / 2.f-this->highScoreText.getGlobalBounds().width, this->window->getSize().y / 4.f);
+
+
+	this->scores.setString(score);
+	this->scores.setFont(this->font2);  // Ensure font is set
+	this->scores.setCharacterSize(30);
+	this->scores.setFillColor(sf::Color::White);
+	this->scores.setPosition(this->highScoreText.getPosition().x, this->highScoreText.getPosition().y + this->highScoreText.getGlobalBounds().height+10.f);
+
 	this->window->draw(this->highScoreText);
+	this->window->draw(this->scores);
 }
+
+
 void Game::getPlayerNameInput() {
 	sf::Text usernamePrompt;
 	usernamePrompt.setFont(this->font2);
 	usernamePrompt.setString("Enter your name:");
-	usernamePrompt.setCharacterSize(30);
-	usernamePrompt.setFillColor(sf::Color::White);
-	usernamePrompt.setPosition(this->window->getSize().x / 2.f - 100.f, this->window->getSize().y / 3.f);
+	usernamePrompt.setCharacterSize(50);
+	usernamePrompt.setFillColor(sf::Color::Green);
+	usernamePrompt.setPosition(this->window->getSize().x / 2.f - usernamePrompt.getLocalBounds().width / 2.f,
+		this->window->getSize().y / 3.f);
 
 	sf::Text usernameInput;
 	usernameInput.setFont(this->font2);
-	usernameInput.setCharacterSize(30);
+	usernameInput.setCharacterSize(40);
 	usernameInput.setFillColor(sf::Color::Yellow);
-	usernameInput.setPosition(this->window->getSize().x / 2.f - 100.f, this->window->getSize().y / 2.f);
+	usernameInput.setPosition(usernamePrompt.getPosition().x - usernameInput.getLocalBounds().width,
+		this->window->getSize().y / 3.f + 60.f); // Slightly below the prompt
 
 	std::string username;
 
@@ -852,6 +1116,7 @@ void Game::getPlayerNameInput() {
 			if (event.type == sf::Event::Closed) {
 				this->window->close();
 			}
+
 			if (event.type == sf::Event::TextEntered) {
 				if (event.text.unicode == '\b' && !username.empty()) {  // Handle backspace
 					username.pop_back();
@@ -859,16 +1124,29 @@ void Game::getPlayerNameInput() {
 				else if (event.text.unicode < 128 && event.text.unicode != '\b') {  // Handle ASCII input
 					username += static_cast<char>(event.text.unicode);
 				}
+				// Update the text object with the new username
+				usernameInput.setString(username);
 			}
+
 			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
-				this->playerName = username;
-				return;
+				std::cerr << this->getlives();
+				if (!username.empty()) {  // Proceed only if a name is entered
+					this->playerName = username;  // Store the player's name
+					game_state = GameState::GAME;  // Switch to the game state
+
+					// Clear Enter key state
+					while (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {
+						// Do nothing, just wait for the key to be released
+					}
+
+					return;  // Exit the input loop
+				}
 			}
 		}
 
-		usernameInput.setString(username);
-
+		// Clear and redraw the window each frame
 		this->window->clear();
+		this->updateStars();
 		this->window->draw(usernamePrompt);
 		this->window->draw(usernameInput);
 		this->window->display();
@@ -878,28 +1156,32 @@ void Game::getPlayerNameInput() {
 
 
 
+
 void Game::update()
 {
-	this->updatePollEvents();
+	this->updatePollEvents();  // Handle events (input, window events)
 
-	this->ui->update();
-	this->updateStars();
+	this->ui->update();  // Update the UI (this might handle player score, health, etc.)
+	this->updateStars();  // Update background stars or other environmental effects
 
+	// Only update game logic if lives > 0 and game state is GAME
 	if (this->getlives() != 0 && game_state == GameState::GAME) {
-		
-		this->updateInput();
-		this->player->updateAttack(this->getlevel());
-		
-		this->updateBullets();
-		this->updateEnemies();
-		this->updateEnemiesCombat();
-		this->updateEnemyBullets();
-		this->updateUI();
+
+		this->updateInput();  // Update player input (e.g., movement, shooting)
+		this->player->updateAttack(this->getlevel());  // Update player attacks
+
+		this->updateBullets();  // Update bullets (move, check collisions)
+		this->updateEnemies();  // Update enemies (move, spawn, etc.)
+		this->updateEnemiesCombat();  // Check enemy and player collisions
+
+		this->updateEnemyBullets();  // Update enemy bullets (movement, collision, etc.)
+
+		this->updateUI();  // Update the user interface (score, health, etc.)
+
+		// Update explosions after all the game mechanics
 	}
-	
-
-
 }
+
 
 void Game::renderUI()
 {
@@ -926,6 +1208,9 @@ void Game::render() {
         for (auto* b : this->boss)
             b->renderboss(this->window);
     }
+	for (auto* bullet : this->bossbullets)
+		bullet->render(this->window);
+
 
     // Render UI components like health bars, score, and other details
     this->renderUI();
@@ -939,13 +1224,14 @@ void Game::resetgame() {
 	this->level = 1;
 	this->lives = 3;
 	this->points = 0;
-	this->updateStars();
 	this->bossSpawned = false;
+	this->scoreSaved = false;  // Reset for the next game
+	this->player->sethpmax();
 	// Clear existing game objects
 	this->bullets.clear();
 	this->enemyBullets.clear();
 	this->enemies.clear();
 	this->boss.clear();
-	this->ui->update();
+	this->bossbullets.clear();
 
 }
