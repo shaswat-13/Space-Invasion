@@ -1,0 +1,1 @@
+For VS-Studio, just download the repo and run the project
